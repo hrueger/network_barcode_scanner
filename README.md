@@ -1,16 +1,62 @@
-# network_barcode_scanner
+# Network QR Code Scanner
 
-A new Flutter project.
+A Flutter app that allows you to scan QR codes and share them over the local network via UDP broadcast.
+
+## Features
+
+-   **Scanner Mode**: Scan QR codes using the device camera and broadcast them to the local network
+-   **Listener Mode**: Listen for QR codes broadcast by other devices on the network and display them
+-   Copy scanned codes to clipboard with a single tap
+-   Real-time network communication using UDP broadcast
+
+## How It Works
+
+1. **Scanner Mode**:
+
+    - Uses the device camera to scan QR codes
+    - When a code is detected, it sends a UDP broadcast packet to port 8765
+    - The broadcast is sent to the entire local network (255.255.255.255)
+
+2. **Listener Mode**:
+    - Listens on UDP port 8765 for incoming broadcast messages
+    - Displays all received QR codes in a list
+    - Shows timestamp for each code
+    - Allows copying codes to clipboard
+
+## Usage
+
+1. Launch the app and select a mode:
+
+    - **Scanner**: To scan QR codes and send them over the network
+    - **Listener**: To receive QR codes from other devices
+
+2. Make sure both devices are on the same local network
+
+3. Grant camera permissions when prompted (Scanner mode only)
+
+## Dependencies
+
+-   `qr_code_scanner_plus`: QR code scanning functionality
+-   `permission_handler`: Camera permission management
+
+## Platform Requirements
+
+### Android
+
+-   Minimum SDK: 21
+-   Permissions: Camera, Internet
+
+### iOS
+
+-   iOS 11.0 or higher
+-   Permissions: Camera, Local Network
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+```bash
+# Install dependencies
+flutter pub get
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+# Run the app
+flutter run
+```
