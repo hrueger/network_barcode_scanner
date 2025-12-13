@@ -150,25 +150,18 @@ class _ScannerScreenState extends State<ScannerScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  if (lastScannedCode != null)
-                    Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Text(
-                        'Last scanned: $lastScannedCode',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                        ),
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    )
-                  else
-                    const Text(
-                      'Scan a QR code to send via network',
-                      style: TextStyle(color: Colors.white, fontSize: 16),
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(
+                      (lastScannedCode != null)
+                          ? 'Last scanned: $lastScannedCode'
+                          : 'Scan a QR code to send via network',
+                      style: const TextStyle(color: Colors.white, fontSize: 16),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
+                  ),
                 ],
               ),
             ),
