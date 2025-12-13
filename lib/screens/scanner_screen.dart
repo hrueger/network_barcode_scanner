@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:qr_code_scanner_plus/qr_code_scanner_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../services/udp_service.dart';
+import '../services/settings_service.dart';
+import '../services/sound_service.dart';
+import 'settings_screen.dart';
 
 class ScannerScreen extends StatefulWidget {
   const ScannerScreen({super.key});
@@ -14,8 +17,11 @@ class _ScannerScreenState extends State<ScannerScreen> {
   final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
   QRViewController? controller;
   final UdpService _udpService = UdpService();
+  final SettingsService _settings = SettingsService();
+  final SoundService _soundService = SoundService();
   String? lastScannedCode;
-  bool isProcessing = false;
+  DateTime? lastScannedTime;
+  final Set<String> _scannedCodesHistory = {};
 
   @override
   void initState() {
@@ -45,7 +51,6 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
   @override
   void dispose() {
-    controller?.dispose();
     _udpService.dispose();
     super.dispose();
   }
@@ -53,41 +58,59 @@ class _ScannerScreenState extends State<ScannerScreen> {
   void _onQRViewCreated(QRViewController controller) {
     this.controller = controller;
     controller.scannedDataStream.listen((scanData) async {
-      if (isProcessing) return;
-
       final code = scanData.code;
-      if (code != null && code.isNotEmpty && code != lastScannedCode) {
-        setState(() {
-          isProcessing = true;
-          lastScannedCode = code;
-        });
+      if (code == null || code.isEmpty) return;
 
-        try {
-          await _udpService.sendBroadcast(code);
+      // Check if we should ignore this code based on settings
+      if (_settings.ignoreSeenCodes && _scannedCodesHistory.contains(code)) {
+        // Silently ignore - code was already scanned
+        return;
+      }
 
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Sent: $code'),
-                duration: const Duration(seconds: 1),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
-        } catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-            );
+      // Check duplicate wait time
+      if (code == lastScannedCode) {
+        if (lastScannedTime != null) {
+          final timeSinceLastScan = DateTime.now().difference(lastScannedTime!);
+          final waitTime = Duration(seconds: _settings.duplicateWaitTime);
+          if (timeSinceLastScan < waitTime) {
+            // Still within wait period
+            return;
           }
         }
+      }
 
-        // Allow scanning again after a short delay
-        await Future.delayed(const Duration(seconds: 2));
+      setState(() {
+        lastScannedCode = code;
+        lastScannedTime = DateTime.now();
+      });
+
+      // Add to history if ignore seen codes is enabled
+      if (_settings.ignoreSeenCodes) {
+        _scannedCodesHistory.add(code);
+      }
+
+      try {
+        // Play sound if enabled
+        if (_settings.playSoundOnScan) {
+          _soundService.playPling();
+        }
+
+        await _udpService.sendBroadcast(code);
+
         if (mounted) {
-          setState(() {
-            isProcessing = false;
-          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Sent: $code'),
+              duration: const Duration(seconds: 1),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          );
         }
       }
     });
@@ -99,11 +122,51 @@ class _ScannerScreenState extends State<ScannerScreen> {
       appBar: AppBar(
         title: const Text('QR Scanner'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+              );
+            },
+            tooltip: 'Settings',
+          ),
+        ],
       ),
       body: Column(
         children: [
+          Container(
+            color: Colors.black87,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (lastScannedCode != null)
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Text(
+                        'Last scanned: $lastScannedCode',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    )
+                  else
+                    const Text(
+                      'Scan a QR code to send via network',
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                ],
+              ),
+            ),
+          ),
           Expanded(
-            flex: 5,
             child: QRView(
               key: qrKey,
               onQRViewCreated: _onQRViewCreated,
@@ -113,47 +176,6 @@ class _ScannerScreenState extends State<ScannerScreen> {
                 borderLength: 30,
                 borderWidth: 10,
                 cutOutSize: 300,
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 1,
-            child: Container(
-              color: Colors.black87,
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (lastScannedCode != null)
-                      Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Text(
-                          'Last scanned: $lastScannedCode',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                          ),
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      )
-                    else
-                      const Text(
-                        'Scan a QR code to send via network',
-                        style: TextStyle(color: Colors.white, fontSize: 16),
-                      ),
-                    if (isProcessing)
-                      const Padding(
-                        padding: EdgeInsets.all(8.0),
-                        child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.blue,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
               ),
             ),
           ),

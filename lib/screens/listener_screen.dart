@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/udp_service.dart';
+import '../services/settings_service.dart';
+import '../services/sound_service.dart';
+import 'settings_screen.dart';
 
 class ListenerScreen extends StatefulWidget {
   const ListenerScreen({super.key});
@@ -11,6 +14,8 @@ class ListenerScreen extends StatefulWidget {
 
 class _ListenerScreenState extends State<ListenerScreen> {
   final UdpService _udpService = UdpService();
+  final SettingsService _settings = SettingsService();
+  final SoundService _soundService = SoundService();
   final List<ScannedCode> _scannedCodes = [];
   bool _isListening = false;
 
@@ -29,6 +34,11 @@ class _ListenerScreenState extends State<ListenerScreen> {
 
       _udpService.messageStream.listen((message) {
         if (mounted) {
+          // Play sound if enabled
+          if (_settings.playSoundOnReceive) {
+            _soundService.playPling();
+          }
+
           setState(() {
             // Check if this code is already in the list
             final existingIndex = _scannedCodes.indexWhere(
@@ -113,6 +123,16 @@ class _ListenerScreenState extends State<ListenerScreen> {
               onPressed: _clearAll,
               tooltip: 'Clear all',
             ),
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+              );
+            },
+            tooltip: 'Settings',
+          ),
         ],
       ),
       body: Column(

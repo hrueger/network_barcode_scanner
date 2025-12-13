@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'screens/scanner_screen.dart';
 import 'screens/listener_screen.dart';
+import 'screens/settings_screen.dart';
+import 'services/settings_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await SettingsService().init();
   runApp(const MyApp());
 }
 
@@ -31,6 +35,18 @@ class ModeSelectionScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Network QR Scanner'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+              );
+            },
+            tooltip: 'Settings',
+          ),
+        ],
       ),
       body: Center(
         child: Padding(
