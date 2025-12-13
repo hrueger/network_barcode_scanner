@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -20,6 +21,7 @@ class _ListenerScreenState extends State<ListenerScreen> {
   final SettingsService _settings = SettingsService();
   final SoundService _soundService = SoundService();
   final List<ScannedCode> _scannedCodes = [];
+  final Set<String> _seenMessageIds = {};
   bool _isListening = false;
 
   @override
@@ -57,7 +59,7 @@ class _ListenerScreenState extends State<ListenerScreen> {
         );
       }
     } catch (e) {
-      print('Error checking accessibility permissions: $e');
+      log('Error checking accessibility permissions: $e');
     }
   }
 
@@ -68,8 +70,17 @@ class _ListenerScreenState extends State<ListenerScreen> {
         _isListening = true;
       });
 
-      _udpService.messageStream.listen((message) async {
+      _udpService.messageStream.listen((qrMessage) async {
         if (mounted) {
+          // Ignore if we've already seen this message ID
+          if (_seenMessageIds.contains(qrMessage.id)) {
+            log('Ignoring duplicate message ID: ${qrMessage.id}');
+            return;
+          }
+
+          // Add to seen IDs
+          _seenMessageIds.add(qrMessage.id);
+
           // Play sound if enabled
           if (_settings.playSoundOnReceive) {
             _soundService.playPling();
@@ -78,28 +89,28 @@ class _ListenerScreenState extends State<ListenerScreen> {
           // Auto-type if enabled
           if (_settings.autoTypeOnReceive) {
             try {
-              await _typeText(message);
+              await _typeText(qrMessage.code);
             } catch (e) {
-              print('Auto-type failed: $e');
+              log('Auto-type failed: $e');
             }
           }
 
           setState(() {
             // Check if this code is already in the list
             final existingIndex = _scannedCodes.indexWhere(
-              (c) => c.code == message,
+              (c) => c.code == qrMessage.code,
             );
             if (existingIndex != -1) {
               // Update timestamp if already exists
               _scannedCodes[existingIndex] = ScannedCode(
-                code: message,
+                code: qrMessage.code,
                 timestamp: DateTime.now(),
               );
             } else {
               // Add new code
               _scannedCodes.insert(
                 0,
-                ScannedCode(code: message, timestamp: DateTime.now()),
+                ScannedCode(code: qrMessage.code, timestamp: DateTime.now()),
               );
             }
           });
@@ -118,6 +129,7 @@ class _ListenerScreenState extends State<ListenerScreen> {
   }
 
   Future<void> _typeText(String text) async {
+    log("🎉 Typing text: $text");
     try {
       // Type each character by simulating key presses
       for (int i = 0; i < text.length; i++) {
@@ -135,7 +147,7 @@ class _ListenerScreenState extends State<ListenerScreen> {
       await keyPressSimulator.simulateKeyDown(PhysicalKeyboardKey.enter);
       await keyPressSimulator.simulateKeyUp(PhysicalKeyboardKey.enter);
     } catch (e) {
-      print('Error typing text: $e');
+      log('Error typing text: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

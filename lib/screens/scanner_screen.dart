@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:qr_code_scanner_plus/qr_code_scanner_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -57,7 +59,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
   void _onQRViewCreated(QRViewController controller) {
     this.controller = controller;
-    controller.scannedDataStream.listen((scanData) async {
+    controller.scannedDataStream.listen((scanData) {
       final code = scanData.code;
       if (code == null || code.isEmpty) return;
 
@@ -89,30 +91,35 @@ class _ScannerScreenState extends State<ScannerScreen> {
         _scannedCodesHistory.add(code);
       }
 
-      try {
-        // Play sound if enabled
-        if (_settings.playSoundOnScan) {
-          _soundService.playPling();
-        }
-
-        await _udpService.sendBroadcast(code);
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Sent: $code'),
-              duration: const Duration(seconds: 1),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-          );
-        }
+      // Play sound if enabled
+      if (_settings.playSoundOnScan) {
+        _soundService.playPling();
       }
+      log("✅ sending code: $code");
+      _udpService
+          .sendBroadcast(code)
+          .then((_) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Sent: $code'),
+                  duration: const Duration(seconds: 1),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
+          })
+          .catchError((error) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Failed to send: $error'),
+                  duration: const Duration(seconds: 2),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          });
     });
   }
 

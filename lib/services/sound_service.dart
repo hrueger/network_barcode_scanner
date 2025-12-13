@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:audioplayers/audioplayers.dart';
 
 class SoundService {
@@ -12,7 +14,7 @@ class SoundService {
     try {
       await _receivePlayer.play(AssetSource('sounds/pling.mp3'));
     } catch (e) {
-      print('Sound playback failed: $e');
+      log('Sound playback failed: $e');
     }
   }
 
