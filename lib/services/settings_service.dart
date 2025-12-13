@@ -13,6 +13,7 @@ class SettingsService {
   static const String _duplicateWaitTimeKey = 'duplicate_wait_time';
   static const String _ignoreSeenCodesKey = 'ignore_seen_codes';
   static const String _autoTypeOnReceiveKey = 'auto_type_on_receive';
+  static const String _autoTypeEndKeyKey = 'auto_type_end_key';
 
   // Default values
   static const bool _defaultPlaySoundOnScan = true;
@@ -20,6 +21,8 @@ class SettingsService {
   static const int _defaultDuplicateWaitTime = 2; // seconds
   static const bool _defaultIgnoreSeenCodes = false;
   static const bool _defaultAutoTypeOnReceive = false;
+  static const String _defaultAutoTypeEndKey =
+      'enter'; // 'enter', 'tab', 'none'
 
   // Initialize shared preferences
   Future<void> init() async {
@@ -42,6 +45,9 @@ class SettingsService {
   bool get autoTypeOnReceive =>
       _prefs?.getBool(_autoTypeOnReceiveKey) ?? _defaultAutoTypeOnReceive;
 
+  String get autoTypeEndKey =>
+      _prefs?.getString(_autoTypeEndKeyKey) ?? _defaultAutoTypeEndKey;
+
   // Setters
   Future<void> setPlaySoundOnScan(bool value) async {
     await _prefs?.setBool(_playSoundOnScanKey, value);
@@ -63,6 +69,10 @@ class SettingsService {
     await _prefs?.setBool(_autoTypeOnReceiveKey, value);
   }
 
+  Future<void> setAutoTypeEndKey(String value) async {
+    await _prefs?.setString(_autoTypeEndKeyKey, value);
+  }
+
   // Reset to defaults
   Future<void> resetToDefaults() async {
     await setPlaySoundOnScan(_defaultPlaySoundOnScan);
@@ -70,5 +80,6 @@ class SettingsService {
     await setDuplicateWaitTime(_defaultDuplicateWaitTime);
     await setIgnoreSeenCodes(_defaultIgnoreSeenCodes);
     await setAutoTypeOnReceive(_defaultAutoTypeOnReceive);
+    await setAutoTypeEndKey(_defaultAutoTypeEndKey);
   }
 }

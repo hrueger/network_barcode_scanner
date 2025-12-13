@@ -17,6 +17,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late int _duplicateWaitTime;
   late bool _ignoreSeenCodes;
   late bool _autoTypeOnReceive;
+  late String _autoTypeEndKey;
 
   @override
   void initState() {
@@ -31,6 +32,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _duplicateWaitTime = _settings.duplicateWaitTime;
       _ignoreSeenCodes = _settings.ignoreSeenCodes;
       _autoTypeOnReceive = _settings.autoTypeOnReceive;
+      _autoTypeEndKey = _settings.autoTypeEndKey;
     });
   }
 
@@ -214,6 +216,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   : Colors.grey,
             ),
           ),
+          if (Platform.isMacOS || Platform.isWindows)
+            ListTile(
+              title: const Text('Auto-Type End Key'),
+              subtitle: const Text('Key pressed after typing the code'),
+              leading: const Icon(Icons.keyboard_return),
+              trailing: DropdownButton<String>(
+                value: _autoTypeEndKey,
+                onChanged: _autoTypeOnReceive
+                    ? (value) async {
+                        if (value != null) {
+                          await _settings.setAutoTypeEndKey(value);
+                          setState(() {
+                            _autoTypeEndKey = value;
+                          });
+                        }
+                      }
+                    : null,
+                items: const [
+                  DropdownMenuItem(value: 'enter', child: Text('Enter')),
+                  DropdownMenuItem(value: 'tab', child: Text('Tab')),
+                  DropdownMenuItem(value: 'none', child: Text('None')),
+                ],
+              ),
+            ),
           const Divider(),
           Padding(
             padding: const EdgeInsets.all(16.0),

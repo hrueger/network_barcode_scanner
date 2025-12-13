@@ -143,9 +143,15 @@ class _ListenerScreenState extends State<ListenerScreen> {
         }
       }
 
-      // Press Enter after typing
-      await keyPressSimulator.simulateKeyDown(PhysicalKeyboardKey.enter);
-      await keyPressSimulator.simulateKeyUp(PhysicalKeyboardKey.enter);
+      // Press configured end key after typing
+      final endKeyType = _settings.autoTypeEndKey;
+      if (endKeyType != 'none') {
+        final endKey = endKeyType == 'tab'
+            ? PhysicalKeyboardKey.tab
+            : PhysicalKeyboardKey.enter;
+        await keyPressSimulator.simulateKeyDown(endKey);
+        await keyPressSimulator.simulateKeyUp(endKey);
+      }
     } catch (e) {
       log('Error typing text: $e');
       if (mounted) {
