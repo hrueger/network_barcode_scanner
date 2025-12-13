@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import '../services/settings_service.dart';
 
@@ -14,6 +16,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _playSoundOnReceive;
   late int _duplicateWaitTime;
   late bool _ignoreSeenCodes;
+  late bool _autoTypeOnReceive;
 
   @override
   void initState() {
@@ -27,6 +30,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _playSoundOnReceive = _settings.playSoundOnReceive;
       _duplicateWaitTime = _settings.duplicateWaitTime;
       _ignoreSeenCodes = _settings.ignoreSeenCodes;
+      _autoTypeOnReceive = _settings.autoTypeOnReceive;
     });
   }
 
@@ -174,6 +178,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
               });
             },
             secondary: const Icon(Icons.block),
+          ),
+          const Divider(),
+          const Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Text(
+              'Listener Settings',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.blue,
+              ),
+            ),
+          ),
+          SwitchListTile(
+            title: const Text('Auto-Type on Receive'),
+            subtitle: Text(
+              Platform.isMacOS || Platform.isWindows
+                  ? 'Automatically type received codes using keyboard simulation'
+                  : 'Only available on macOS and Windows',
+            ),
+            value: _autoTypeOnReceive,
+            onChanged: (Platform.isMacOS || Platform.isWindows)
+                ? (value) async {
+                    await _settings.setAutoTypeOnReceive(value);
+                    setState(() {
+                      _autoTypeOnReceive = value;
+                    });
+                  }
+                : null,
+            secondary: Icon(
+              Icons.keyboard,
+              color: (Platform.isMacOS || Platform.isWindows)
+                  ? null
+                  : Colors.grey,
+            ),
           ),
           const Divider(),
           Padding(
