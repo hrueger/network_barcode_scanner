@@ -1,7 +1,7 @@
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
-import 'package:qr_code_scanner_plus/qr_code_scanner_plus.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../services/udp_service.dart';
 import '../services/settings_service.dart';
@@ -16,8 +16,9 @@ class ScannerScreen extends StatefulWidget {
 }
 
 class _ScannerScreenState extends State<ScannerScreen> {
-  final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
-  QRViewController? controller;
+  final MobileScannerController controller = MobileScannerController(
+    detectionSpeed: DetectionSpeed.normal,
+  );
   final UdpService _udpService = UdpService();
   final SettingsService _settings = SettingsService();
   final SoundService _soundService = SoundService();
@@ -43,88 +44,85 @@ class _ScannerScreenState extends State<ScannerScreen> {
   }
 
   @override
-  void reassemble() {
-    super.reassemble();
-    if (controller != null) {
-      controller!.pauseCamera();
-      controller!.resumeCamera();
-    }
-  }
-
-  @override
   void dispose() {
+    controller.dispose();
     _udpService.dispose();
     super.dispose();
   }
 
-  void _onQRViewCreated(QRViewController controller) {
-    this.controller = controller;
-    controller.scannedDataStream.listen((scanData) {
-      final code = scanData.code;
-      if (code == null || code.isEmpty) return;
+  void _handleBarcode(BarcodeCapture capture) {
+    final List<Barcode> barcodes = capture.barcodes;
+    if (barcodes.isEmpty) return;
 
-      // Check if we should ignore this code based on settings
-      if (_settings.ignoreSeenCodes && _scannedCodesHistory.contains(code)) {
-        // Silently ignore - code was already scanned
-        return;
-      }
+    final code = barcodes.first.rawValue;
+    if (code == null || code.isEmpty) return;
 
-      // Check duplicate wait time
-      if (code == lastScannedCode) {
-        if (lastScannedTime != null) {
-          final timeSinceLastScan = DateTime.now().difference(lastScannedTime!);
-          final waitTime = Duration(seconds: _settings.duplicateWaitTime);
-          if (timeSinceLastScan < waitTime) {
-            // Still within wait period
-            return;
-          }
+    // Check if we should ignore this code based on settings
+    if (_settings.ignoreSeenCodes && _scannedCodesHistory.contains(code)) {
+      // Silently ignore - code was already scanned
+      return;
+    }
+
+    // Check duplicate wait time
+    if (code == lastScannedCode) {
+      if (lastScannedTime != null) {
+        final timeSinceLastScan = DateTime.now().difference(lastScannedTime!);
+        final waitTime = Duration(seconds: _settings.duplicateWaitTime);
+        if (timeSinceLastScan < waitTime) {
+          // Still within wait period
+          return;
         }
       }
+    }
 
-      setState(() {
-        lastScannedCode = code;
-        lastScannedTime = DateTime.now();
-      });
-
-      // Add to history if ignore seen codes is enabled
-      if (_settings.ignoreSeenCodes) {
-        _scannedCodesHistory.add(code);
-      }
-
-      // Play sound if enabled
-      if (_settings.playSoundOnScan) {
-        _soundService.playPling();
-      }
-      log("✅ sending code: $code");
-      _udpService
-          .sendBroadcast(code)
-          .then((_) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Sent: $code'),
-                  duration: const Duration(seconds: 1),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            }
-          })
-          .catchError((error) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Failed to send: $error'),
-                  duration: const Duration(seconds: 2),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            }
-          });
+    setState(() {
+      lastScannedCode = code;
+      lastScannedTime = DateTime.now();
     });
+
+    // Add to history if ignore seen codes is enabled
+    if (_settings.ignoreSeenCodes) {
+      _scannedCodesHistory.add(code);
+    }
+
+    // Play sound if enabled
+    if (_settings.playSoundOnScan) {
+      _soundService.playPling();
+    }
+    log("✅ sending code: $code");
+    _udpService
+        .sendBroadcast(code)
+        .then((_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Sent: $code'),
+                duration: const Duration(seconds: 1),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        })
+        .catchError((error) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to send: $error'),
+                duration: const Duration(seconds: 2),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        });
   }
 
   @override
   Widget build(BuildContext context) {
+    late final scanWindow = Rect.fromCenter(
+      center: MediaQuery.sizeOf(context).center(const Offset(0, -100)),
+      width: 300,
+      height: 200,
+    );
     return Scaffold(
       appBar: AppBar(
         title: const Text('QR Scanner'),
@@ -142,41 +140,21 @@ class _ScannerScreenState extends State<ScannerScreen> {
           ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          Container(
-            color: Colors.black87,
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Text(
-                      (lastScannedCode != null)
-                          ? 'Last scanned: $lastScannedCode'
-                          : 'Scan a QR code to send via network',
-                      style: const TextStyle(color: Colors.white, fontSize: 16),
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          MobileScanner(
+            controller: controller,
+            onDetect: _handleBarcode,
+            scanWindow: scanWindow,
+            tapToFocus: true,
           ),
-          Expanded(
-            child: QRView(
-              key: qrKey,
-              onQRViewCreated: _onQRViewCreated,
-              overlay: QrScannerOverlayShape(
-                borderColor: Colors.blue,
-                borderRadius: 10,
-                borderLength: 30,
-                borderWidth: 10,
-                cutOutSize: 300,
-              ),
+          IgnorePointer(
+            child: BarcodeOverlay(controller: controller, boxFit: BoxFit.cover),
+          ),
+          IgnorePointer(
+            child: ScanWindowOverlay(
+              scanWindow: scanWindow,
+              controller: controller,
             ),
           ),
         ],
