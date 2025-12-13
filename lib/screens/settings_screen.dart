@@ -122,125 +122,129 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
             secondary: const Icon(Icons.notifications_active),
           ),
-          const Divider(),
-          const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Text(
-              'Scanner Settings',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.blue,
+          if (Platform.isAndroid || Platform.isIOS) ...[
+            const Divider(),
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text(
+                'Scanner Settings',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue,
+                ),
               ),
             ),
-          ),
-          ListTile(
-            title: const Text('Duplicate Wait Time'),
-            subtitle: Text(
-              'How long to wait before scanning the same code again: $_duplicateWaitTime seconds',
-            ),
-            leading: const Icon(Icons.timer),
-            trailing: SizedBox(
-              width: 200,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Text('$_duplicateWaitTime s'),
-                  Expanded(
-                    child: Slider(
-                      value: _duplicateWaitTime.toDouble(),
-                      min: 0,
-                      max: 10,
-                      divisions: 10,
-                      label: '$_duplicateWaitTime s',
-                      onChanged: (value) {
-                        setState(() {
-                          _duplicateWaitTime = value.toInt();
-                        });
-                      },
-                      onChangeEnd: (value) async {
-                        await _settings.setDuplicateWaitTime(value.toInt());
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          SwitchListTile(
-            title: const Text('Ignore Seen Codes Until Restart'),
-            subtitle: const Text(
-              'Once a code is scanned, it cannot be scanned again until the app is restarted',
-            ),
-            value: _ignoreSeenCodes,
-            onChanged: (value) async {
-              await _settings.setIgnoreSeenCodes(value);
-              setState(() {
-                _ignoreSeenCodes = value;
-              });
-            },
-            secondary: const Icon(Icons.block),
-          ),
-          const Divider(),
-          const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Text(
-              'Listener Settings',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.blue,
-              ),
-            ),
-          ),
-          SwitchListTile(
-            title: const Text('Auto-Type on Receive'),
-            subtitle: Text(
-              Platform.isMacOS || Platform.isWindows
-                  ? 'Automatically type received codes using keyboard simulation'
-                  : 'Only available on macOS and Windows',
-            ),
-            value: _autoTypeOnReceive,
-            onChanged: (Platform.isMacOS || Platform.isWindows)
-                ? (value) async {
-                    await _settings.setAutoTypeOnReceive(value);
-                    setState(() {
-                      _autoTypeOnReceive = value;
-                    });
-                  }
-                : null,
-            secondary: Icon(
-              Icons.keyboard,
-              color: (Platform.isMacOS || Platform.isWindows)
-                  ? null
-                  : Colors.grey,
-            ),
-          ),
-          if (Platform.isMacOS || Platform.isWindows)
             ListTile(
-              title: const Text('Auto-Type End Key'),
-              subtitle: const Text('Key pressed after typing the code'),
-              leading: const Icon(Icons.keyboard_return),
-              trailing: DropdownButton<String>(
-                value: _autoTypeEndKey,
-                onChanged: _autoTypeOnReceive
-                    ? (value) async {
-                        if (value != null) {
-                          await _settings.setAutoTypeEndKey(value);
+              title: const Text('Duplicate Wait Time'),
+              subtitle: Text(
+                'How long to wait before scanning the same code again: $_duplicateWaitTime seconds',
+              ),
+              leading: const Icon(Icons.timer),
+              trailing: SizedBox(
+                width: 200,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text('$_duplicateWaitTime s'),
+                    Expanded(
+                      child: Slider(
+                        value: _duplicateWaitTime.toDouble(),
+                        min: 0,
+                        max: 10,
+                        divisions: 10,
+                        label: '$_duplicateWaitTime s',
+                        onChanged: (value) {
                           setState(() {
-                            _autoTypeEndKey = value;
+                            _duplicateWaitTime = value.toInt();
                           });
-                        }
-                      }
-                    : null,
-                items: const [
-                  DropdownMenuItem(value: 'enter', child: Text('Enter')),
-                  DropdownMenuItem(value: 'tab', child: Text('Tab')),
-                  DropdownMenuItem(value: 'none', child: Text('None')),
-                ],
+                        },
+                        onChangeEnd: (value) async {
+                          await _settings.setDuplicateWaitTime(value.toInt());
+                        },
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          const Divider(),
+            SwitchListTile(
+              title: const Text('Ignore Seen Codes Until Restart'),
+              subtitle: const Text(
+                'Once a code is scanned, it cannot be scanned again until the app is restarted',
+              ),
+              value: _ignoreSeenCodes,
+              onChanged: (value) async {
+                await _settings.setIgnoreSeenCodes(value);
+                setState(() {
+                  _ignoreSeenCodes = value;
+                });
+              },
+              secondary: const Icon(Icons.block),
+            ),
+            const Divider(),
+          ],
+          if (Platform.isMacOS || Platform.isLinux || Platform.isWindows) ...[
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text(
+                'Listener Settings',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue,
+                ),
+              ),
+            ),
+            SwitchListTile(
+              title: const Text('Auto-Type on Receive'),
+              subtitle: Text(
+                Platform.isMacOS || Platform.isWindows
+                    ? 'Automatically type received codes using keyboard simulation'
+                    : 'Only available on macOS and Windows',
+              ),
+              value: _autoTypeOnReceive,
+              onChanged: (Platform.isMacOS || Platform.isWindows)
+                  ? (value) async {
+                      await _settings.setAutoTypeOnReceive(value);
+                      setState(() {
+                        _autoTypeOnReceive = value;
+                      });
+                    }
+                  : null,
+              secondary: Icon(
+                Icons.keyboard,
+                color: (Platform.isMacOS || Platform.isWindows)
+                    ? null
+                    : Colors.grey,
+              ),
+            ),
+            if (Platform.isMacOS || Platform.isWindows)
+              ListTile(
+                title: const Text('Auto-Type End Key'),
+                subtitle: const Text('Key pressed after typing the code'),
+                leading: const Icon(Icons.keyboard_return),
+                trailing: DropdownButton<String>(
+                  value: _autoTypeEndKey,
+                  onChanged: _autoTypeOnReceive
+                      ? (value) async {
+                          if (value != null) {
+                            await _settings.setAutoTypeEndKey(value);
+                            setState(() {
+                              _autoTypeEndKey = value;
+                            });
+                          }
+                        }
+                      : null,
+                  items: const [
+                    DropdownMenuItem(value: 'enter', child: Text('Enter')),
+                    DropdownMenuItem(value: 'tab', child: Text('Tab')),
+                    DropdownMenuItem(value: 'none', child: Text('None')),
+                  ],
+                ),
+              ),
+            const Divider(),
+          ],
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
