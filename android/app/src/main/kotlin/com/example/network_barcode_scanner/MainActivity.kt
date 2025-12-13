@@ -1,4 +1,4 @@
-package com.example.network_barcode_scanner
+package com.hannesrueger.network_barcode_scanner
 
 import io.flutter.embedding.android.FlutterActivity
 
