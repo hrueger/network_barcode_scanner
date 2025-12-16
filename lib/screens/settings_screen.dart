@@ -198,51 +198,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             SwitchListTile(
               title: const Text('Auto-Type on Receive'),
-              subtitle: Text(
-                Platform.isMacOS || Platform.isWindows
-                    ? 'Automatically type received codes using keyboard simulation'
-                    : 'Only available on macOS and Windows',
-              ),
               value: _autoTypeOnReceive,
-              onChanged: (Platform.isMacOS || Platform.isWindows)
-                  ? (value) async {
-                      await _settings.setAutoTypeOnReceive(value);
-                      setState(() {
-                        _autoTypeOnReceive = value;
-                      });
-                    }
-                  : null,
-              secondary: Icon(
-                Icons.keyboard,
-                color: (Platform.isMacOS || Platform.isWindows)
-                    ? null
-                    : Colors.grey,
+              onChanged: (value) async {
+                await _settings.setAutoTypeOnReceive(value);
+                setState(() {
+                  _autoTypeOnReceive = value;
+                });
+              },
+              secondary: Icon(Icons.keyboard),
+            ),
+            ListTile(
+              title: const Text('Auto-Type End Key'),
+              subtitle: const Text('Key pressed after typing the code'),
+              leading: const Icon(Icons.keyboard_return),
+              trailing: DropdownButton<String>(
+                value: _autoTypeEndKey,
+                onChanged: _autoTypeOnReceive
+                    ? (value) async {
+                        if (value != null) {
+                          await _settings.setAutoTypeEndKey(value);
+                          setState(() {
+                            _autoTypeEndKey = value;
+                          });
+                        }
+                      }
+                    : null,
+                items: const [
+                  DropdownMenuItem(value: 'enter', child: Text('Enter')),
+                  DropdownMenuItem(value: 'tab', child: Text('Tab')),
+                  DropdownMenuItem(value: 'none', child: Text('None')),
+                ],
               ),
             ),
-            if (Platform.isMacOS || Platform.isWindows)
-              ListTile(
-                title: const Text('Auto-Type End Key'),
-                subtitle: const Text('Key pressed after typing the code'),
-                leading: const Icon(Icons.keyboard_return),
-                trailing: DropdownButton<String>(
-                  value: _autoTypeEndKey,
-                  onChanged: _autoTypeOnReceive
-                      ? (value) async {
-                          if (value != null) {
-                            await _settings.setAutoTypeEndKey(value);
-                            setState(() {
-                              _autoTypeEndKey = value;
-                            });
-                          }
-                        }
-                      : null,
-                  items: const [
-                    DropdownMenuItem(value: 'enter', child: Text('Enter')),
-                    DropdownMenuItem(value: 'tab', child: Text('Tab')),
-                    DropdownMenuItem(value: 'none', child: Text('None')),
-                  ],
-                ),
-              ),
             const Divider(),
           ],
           Padding(

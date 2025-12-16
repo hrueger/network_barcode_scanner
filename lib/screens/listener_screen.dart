@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:keypress_simulator/keypress_simulator.dart';
+import 'package:bixat_key_mouse/bixat_key_mouse.dart';
 import '../services/udp_service.dart';
 import '../services/settings_service.dart';
 import '../services/sound_service.dart';
@@ -32,6 +33,11 @@ class _ListenerScreenState extends State<ListenerScreen> {
   }
 
   Future<void> _checkAccessPermissions() async {
+    // Linux uses bixat_key_mouse which doesn't require permission checks
+    if (Platform.isLinux) {
+      await BixatKeyMouse.initialize();
+    }
+
     // Only check on platforms that support keyboard simulation
     if (!Platform.isMacOS && !Platform.isWindows) return;
 
@@ -131,26 +137,42 @@ class _ListenerScreenState extends State<ListenerScreen> {
   Future<void> _typeText(String text) async {
     log("🎉 Typing text: $text");
     try {
-      // Type each character by simulating key presses
-      for (int i = 0; i < text.length; i++) {
-        final char = text[i];
-        final key = _getKeyFromChar(char);
-        if (key != null) {
-          await keyPressSimulator.simulateKeyDown(key);
-          await keyPressSimulator.simulateKeyUp(key);
-          // Small delay between characters for reliability
-          await Future.delayed(const Duration(milliseconds: 10));
-        }
-      }
+      if (Platform.isLinux) {
+        // Use bixat_key_mouse for Linux
+        BixatKeyMouse.enterText(text: text);
 
-      // Press configured end key after typing
-      final endKeyType = _settings.autoTypeEndKey;
-      if (endKeyType != 'none') {
-        final endKey = endKeyType == 'tab'
-            ? PhysicalKeyboardKey.tab
-            : PhysicalKeyboardKey.enter;
-        await keyPressSimulator.simulateKeyDown(endKey);
-        await keyPressSimulator.simulateKeyUp(endKey);
+        // Press configured end key after typing
+        final endKeyType = _settings.autoTypeEndKey;
+        if (endKeyType != 'none') {
+          if (endKeyType == 'tab') {
+            BixatKeyMouse.simulateKey(key: UniversalKey.tab);
+          } else {
+            BixatKeyMouse.enterText(text: "\n");
+          }
+        }
+      } else {
+        // Use keypress_simulator for macOS and Windows
+        // Type each character by simulating key presses
+        for (int i = 0; i < text.length; i++) {
+          final char = text[i];
+          final key = _getKeyFromChar(char);
+          if (key != null) {
+            await keyPressSimulator.simulateKeyDown(key);
+            await keyPressSimulator.simulateKeyUp(key);
+            // Small delay between characters for reliability
+            await Future.delayed(const Duration(milliseconds: 10));
+          }
+        }
+
+        // Press configured end key after typing
+        final endKeyType = _settings.autoTypeEndKey;
+        if (endKeyType != 'none') {
+          final endKey = endKeyType == 'tab'
+              ? PhysicalKeyboardKey.tab
+              : PhysicalKeyboardKey.enter;
+          await keyPressSimulator.simulateKeyDown(endKey);
+          await keyPressSimulator.simulateKeyUp(endKey);
+        }
       }
     } catch (e) {
       log('Error typing text: $e');
