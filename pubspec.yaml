@@ -39,7 +39,10 @@ dependencies:
     shared_preferences: ^2.5.4
     audioplayers: ^6.5.1
     keypress_simulator: 0.2.0
-    bixat_key_mouse: ^1.0.3
+    # Vendored copy of bixat_key_mouse 1.0.3: the pub.dev release declares Android/iOS
+    # FFI platforms it does not ship, which breaks `flutter build apk`.
+    bixat_key_mouse:
+        path: packages/bixat_key_mouse
 
 dev_dependencies:
     flutter_test:
