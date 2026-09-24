@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import '../services/hardware_scanner_service.dart';
 import '../services/settings_service.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -18,11 +19,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _ignoreSeenCodes;
   late bool _autoTypeOnReceive;
   late String _autoTypeEndKey;
+  late ScanInputMode _scanInputMode;
+  late String _scanBroadcastAction;
+  late String _scanBroadcastExtra;
+  DeviceIdentity? _device;
 
   @override
   void initState() {
     super.initState();
     _loadSettings();
+    HardwareScannerService().deviceInfo().then((device) {
+      if (mounted) setState(() => _device = device);
+    });
   }
 
   void _loadSettings() {
@@ -33,7 +41,56 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _ignoreSeenCodes = _settings.ignoreSeenCodes;
       _autoTypeOnReceive = _settings.autoTypeOnReceive;
       _autoTypeEndKey = _settings.autoTypeEndKey;
+      _scanInputMode = ScanInputMode.parse(_settings.scanInputMode);
+      _scanBroadcastAction = _settings.scanBroadcastAction;
+      _scanBroadcastExtra = _settings.scanBroadcastExtra;
     });
+  }
+
+  /// What auto mode resolves to on this device, for the picker's subtitle.
+  String get _scanInputDescription {
+    if (!HardwareScannerService.isSupported) return 'Camera';
+    final device = _device;
+    final name = device == null ? 'this device' : device.label;
+    if (_settings.hardwareScanSeen) {
+      return '$name has delivered hardware scans';
+    }
+    if (device?.isKnownPda ?? false) return '$name is a known scanner model';
+    return '$name: no scan engine known, using camera';
+  }
+
+  Future<void> _editText({
+    required String title,
+    required String value,
+    required Future<void> Function(String) onSaved,
+  }) async {
+    final controller = TextEditingController(text: value);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          autocorrect: false,
+          enableSuggestions: false,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (result == null || result.isEmpty) return;
+    await onSaved(result);
+    _loadSettings();
   }
 
   Future<void> _resetToDefaults() async {
@@ -182,6 +239,63 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
               secondary: const Icon(Icons.block),
             ),
+            if (HardwareScannerService.isSupported) ...[
+              ListTile(
+                title: const Text('Scan Input'),
+                subtitle: Text(_scanInputDescription),
+                leading: const Icon(Icons.input),
+                trailing: DropdownButton<ScanInputMode>(
+                  value: _scanInputMode,
+                  onChanged: (value) async {
+                    if (value == null) return;
+                    await _settings.setScanInputMode(value.name);
+                    setState(() {
+                      _scanInputMode = value;
+                    });
+                  },
+                  items: const [
+                    DropdownMenuItem(
+                      value: ScanInputMode.auto,
+                      child: Text('Automatic'),
+                    ),
+                    DropdownMenuItem(
+                      value: ScanInputMode.hardware,
+                      child: Text('Hardware trigger'),
+                    ),
+                    DropdownMenuItem(
+                      value: ScanInputMode.camera,
+                      child: Text('Camera'),
+                    ),
+                  ],
+                ),
+              ),
+              if (_scanInputMode != ScanInputMode.camera) ...[
+                ListTile(
+                  title: const Text('Broadcast Action'),
+                  subtitle: Text(
+                    '$_scanBroadcastAction\nThe Intent action the scanner service sends',
+                  ),
+                  leading: const Icon(Icons.settings_input_antenna),
+                  onTap: () => _editText(
+                    title: 'Broadcast Action',
+                    value: _scanBroadcastAction,
+                    onSaved: _settings.setScanBroadcastAction,
+                  ),
+                ),
+                ListTile(
+                  title: const Text('Broadcast Extra Key'),
+                  subtitle: Text(
+                    '$_scanBroadcastExtra\nThe Intent extra holding the decoded text',
+                  ),
+                  leading: const Icon(Icons.key),
+                  onTap: () => _editText(
+                    title: 'Broadcast Extra Key',
+                    value: _scanBroadcastExtra,
+                    onSaved: _settings.setScanBroadcastExtra,
+                  ),
+                ),
+              ],
+            ],
             const Divider(),
           ],
           if (Platform.isMacOS || Platform.isLinux || Platform.isWindows) ...[

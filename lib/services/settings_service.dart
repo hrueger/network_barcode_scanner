@@ -14,6 +14,10 @@ class SettingsService {
   static const String _ignoreSeenCodesKey = 'ignore_seen_codes';
   static const String _autoTypeOnReceiveKey = 'auto_type_on_receive';
   static const String _autoTypeEndKeyKey = 'auto_type_end_key';
+  static const String _scanInputModeKey = 'scan_input_mode';
+  static const String _scanBroadcastActionKey = 'scan_broadcast_action';
+  static const String _scanBroadcastExtraKey = 'scan_broadcast_extra';
+  static const String _hardwareScanSeenKey = 'hardware_scan_seen';
 
   // Default values
   static const bool _defaultPlaySoundOnScan = true;
@@ -23,6 +27,11 @@ class SettingsService {
   static const bool _defaultAutoTypeOnReceive = false;
   static const String _defaultAutoTypeEndKey =
       'enter'; // 'enter', 'tab', 'none'
+  static const String _defaultScanInputMode =
+      'auto'; // 'auto', 'hardware', 'camera'
+  // Chainway (rscja) scanner service defaults; other PDA firmwares differ.
+  static const String _defaultScanBroadcastAction = 'com.scanner.broadcast';
+  static const String _defaultScanBroadcastExtra = 'data';
 
   // Initialize shared preferences
   Future<void> init() async {
@@ -47,6 +56,19 @@ class SettingsService {
 
   String get autoTypeEndKey =>
       _prefs?.getString(_autoTypeEndKeyKey) ?? _defaultAutoTypeEndKey;
+
+  String get scanInputMode =>
+      _prefs?.getString(_scanInputModeKey) ?? _defaultScanInputMode;
+
+  String get scanBroadcastAction =>
+      _prefs?.getString(_scanBroadcastActionKey) ?? _defaultScanBroadcastAction;
+
+  String get scanBroadcastExtra =>
+      _prefs?.getString(_scanBroadcastExtraKey) ?? _defaultScanBroadcastExtra;
+
+  /// Whether this device has ever delivered a hardware scan. Proof that it
+  /// has a scan engine, independent of the known-model list.
+  bool get hardwareScanSeen => _prefs?.getBool(_hardwareScanSeenKey) ?? false;
 
   // Setters
   Future<void> setPlaySoundOnScan(bool value) async {
@@ -73,6 +95,22 @@ class SettingsService {
     await _prefs?.setString(_autoTypeEndKeyKey, value);
   }
 
+  Future<void> setScanInputMode(String value) async {
+    await _prefs?.setString(_scanInputModeKey, value);
+  }
+
+  Future<void> setScanBroadcastAction(String value) async {
+    await _prefs?.setString(_scanBroadcastActionKey, value);
+  }
+
+  Future<void> setScanBroadcastExtra(String value) async {
+    await _prefs?.setString(_scanBroadcastExtraKey, value);
+  }
+
+  Future<void> setHardwareScanSeen(bool value) async {
+    await _prefs?.setBool(_hardwareScanSeenKey, value);
+  }
+
   // Reset to defaults
   Future<void> resetToDefaults() async {
     await setPlaySoundOnScan(_defaultPlaySoundOnScan);
@@ -81,5 +119,9 @@ class SettingsService {
     await setIgnoreSeenCodes(_defaultIgnoreSeenCodes);
     await setAutoTypeOnReceive(_defaultAutoTypeOnReceive);
     await setAutoTypeEndKey(_defaultAutoTypeEndKey);
+    await setScanInputMode(_defaultScanInputMode);
+    await setScanBroadcastAction(_defaultScanBroadcastAction);
+    await setScanBroadcastExtra(_defaultScanBroadcastExtra);
+    await setHardwareScanSeen(false);
   }
 }
