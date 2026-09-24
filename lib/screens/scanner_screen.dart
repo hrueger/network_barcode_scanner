@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:developer';
+import 'dart:math' show max;
 
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -128,11 +129,14 @@ class _ScannerScreenState extends State<ScannerScreen> {
       return;
     }
 
-    // Check duplicate wait time
+    // Check duplicate wait time. Never below half a second: a scan engine can
+    // fire twice per trigger pull, and the camera re-reads every frame.
     if (code == lastScannedCode) {
       if (lastScannedTime != null) {
         final timeSinceLastScan = DateTime.now().difference(lastScannedTime!);
-        final waitTime = Duration(seconds: _settings.duplicateWaitTime);
+        final waitTime = Duration(
+          milliseconds: max(_settings.duplicateWaitTime * 1000, 500),
+        );
         if (timeSinceLastScan < waitTime) {
           // Still within wait period
           return;

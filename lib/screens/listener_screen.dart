@@ -23,6 +23,16 @@ class _ListenerScreenState extends State<ListenerScreen> {
   final SoundService _soundService = SoundService();
   final List<ScannedCode> _scannedCodes = [];
   final Set<String> _seenMessageIds = {};
+
+  /// When each code was last accepted, so the same code arriving again within
+  /// [_echoWindow] is dropped even if it carries a fresh message id (a second
+  /// device scanning the same label, or a scanner engine firing twice).
+  final Map<String, DateTime> _lastAcceptedAt = {};
+  static const Duration _echoWindow = Duration(milliseconds: 1500);
+
+  /// Typing runs strictly one code after another. The stream callback is
+  /// async, so without this two arrivals would type interleaved keystrokes.
+  Future<void> _typeQueue = Future.value();
   bool _isListening = false;
 
   @override
@@ -87,15 +97,26 @@ class _ListenerScreenState extends State<ListenerScreen> {
           // Add to seen IDs
           _seenMessageIds.add(qrMessage.id);
 
+          // Drop echoes of a code accepted a moment ago
+          final now = DateTime.now();
+          final lastAccepted = _lastAcceptedAt[qrMessage.code];
+          if (lastAccepted != null &&
+              now.difference(lastAccepted) < _echoWindow) {
+            log('Ignoring echo of code within echo window: ${qrMessage.code}');
+            return;
+          }
+          _lastAcceptedAt[qrMessage.code] = now;
+
           // Play sound if enabled
           if (_settings.playSoundOnReceive) {
             _soundService.playPling();
           }
 
-          // Auto-type if enabled
+          // Auto-type if enabled, one code at a time
           if (_settings.autoTypeOnReceive) {
+            _typeQueue = _typeQueue.then((_) => _typeText(qrMessage.code));
             try {
-              await _typeText(qrMessage.code);
+              await _typeQueue;
             } catch (e) {
               log('Auto-type failed: $e');
             }
