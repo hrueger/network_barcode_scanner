@@ -12,3 +12,8 @@ PRODUCT_BUNDLE_IDENTIFIER = com.hannesrueger.networkBarcodeScanner
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2025 com.hannesrueger. All rights reserved.
+
+// Sign with the personal team (same as iOS) instead of ad hoc: macOS ties
+// Accessibility and Input Monitoring grants to the signature.
+DEVELOPMENT_TEAM = M273PG74WU
+CODE_SIGN_IDENTITY = Apple Development
