@@ -9,9 +9,10 @@ name: Release
 # The tag must match `version:` in pubspec.yaml. Bump that first, commit, then
 # tag the commit.
 #
-# A platform whose secrets are missing fails the whole release instead of
-# being skipped: a release without its DMG would look exactly like a complete
-# one.
+# A platform that fails, for instance because its secrets are not set up yet,
+# shows red in the run but does not hold back the others: the release is
+# published with whatever built, and its notes name what is missing. Rebuild
+# the tag once the platform is fixed to add its asset.
 on:
   push:
     tags:
@@ -252,12 +253,16 @@ jobs:
 
   release:
     needs: [version, android, macos, windows, linux]
+    # Run even when some platforms failed, but not when the tag is wrong
+    if: ${{ !cancelled() && needs.version.result == 'success' }}
     runs-on: ubuntu-latest
     # The only job that writes to the repository
     permissions:
       contents: write
     steps:
+      # Finding no artifact at all is handled, with a clearer message, below
       - uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           path: assets
           merge-multiple: true
@@ -267,11 +272,35 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           VERSION: ${{ needs.version.outputs.version }}
+          RESULTS: >-
+            Android=${{ needs.android.result }}
+            macOS=${{ needs.macos.result }}
+            Windows=${{ needs.windows.result }}
+            Linux=${{ needs.linux.result }}
         run: |
           set -euo pipefail
+          shopt -s nullglob
+          assets=(assets/*)
+          if [ ${#assets[@]} -eq 0 ]; then
+            echo "::error::No platform built, so there is nothing to release" >&2
+            exit 1
+          fi
+
+          missing=()
+          for entry in $RESULTS; do
+            if [ "${entry#*=}" != success ]; then
+              missing+=("${entry%%=*}")
+              echo "::warning::${entry%%=*} did not build and is missing from $TAG"
+            fi
+          done
+          notes=""
+          if [ ${#missing[@]} -gt 0 ]; then
+            notes="Not included in this release: ${missing[*]}."
+          fi
+
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" assets/* --clobber
+            gh release upload "$TAG" "${assets[@]}" --clobber
           else
-            gh release create "$TAG" assets/* --title "Network Barcode Scanner $VERSION" \
-              --generate-notes --verify-tag
+            gh release create "$TAG" "${assets[@]}" --title "Network Barcode Scanner $VERSION" \
+              --notes "$notes" --generate-notes --verify-tag
           fi
