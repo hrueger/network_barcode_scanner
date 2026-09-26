@@ -5,6 +5,7 @@ import 'dart:math' hide log;
 import 'dart:developer';
 
 import 'package:bonsoir/bonsoir.dart';
+import 'package:flutter/foundation.dart';
 
 class QrMessage {
   final String id;
@@ -39,6 +40,14 @@ class UdpService {
 
   /// Resolved listeners by Bonjour service name
   final Map<String, List<InternetAddress>> _listeners = {};
+
+  /// Names of the listeners codes currently go to, for the scanner UI
+  final ValueNotifier<List<String>> listenerNames = ValueNotifier([]);
+
+  void _publishListeners() {
+    listenerNames.value = _listeners.keys.toList()..sort();
+  }
+
   final StreamController<QrMessage> _messageController =
       StreamController<QrMessage>.broadcast();
 
@@ -92,9 +101,11 @@ class UdpService {
             final service = event.service!;
             final addresses = await _ipv4Addresses(service);
             if (addresses.isNotEmpty) _listeners[service.name] = addresses;
+            _publishListeners();
             log('Listener ${service.name}: ${addresses.map((a) => a.address)}');
           case BonsoirDiscoveryServiceLostEvent():
             _listeners.remove(event.service.name);
+            _publishListeners();
             log('Listener lost: ${event.service.name}');
           default:
             break;
@@ -198,6 +209,7 @@ class UdpService {
     stopListening();
     _discovery?.stop();
     _discovery = null;
+    listenerNames.dispose();
     _messageController.close();
   }
 }

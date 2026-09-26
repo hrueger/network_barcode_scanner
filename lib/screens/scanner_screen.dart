@@ -209,10 +209,53 @@ class _ScannerScreenState extends State<ScannerScreen> {
           ),
         ],
       ),
-      body: switch (_useHardware) {
-        null => const Center(child: CircularProgressIndicator()),
-        true => _buildHardwareBody(context),
-        false => _buildCameraBody(context),
+      body: Column(
+        children: [
+          _buildListenersBar(),
+          Expanded(
+            child: switch (_useHardware) {
+              null => const Center(child: CircularProgressIndicator()),
+              true => _buildHardwareBody(context),
+              false => _buildCameraBody(context),
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Shows who receives the scans. Without any listener found, codes only go
+  /// out as a broadcast, which sandboxed macOS listeners never receive.
+  Widget _buildListenersBar() {
+    return ValueListenableBuilder<List<String>>(
+      valueListenable: _udpService.listenerNames,
+      builder: (context, names, _) {
+        final found = names.isNotEmpty;
+        final color = found ? Colors.green : Colors.orange;
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          color: found ? Colors.green.shade100 : Colors.orange.shade100,
+          child: Row(
+            children: [
+              Icon(found ? Icons.computer : Icons.warning_amber, color: color),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  found
+                      ? 'Sending to: ${names.join(', ')}'
+                      : 'No listeners found – broadcast only',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: found
+                        ? Colors.green.shade900
+                        : Colors.orange.shade900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
       },
     );
   }
