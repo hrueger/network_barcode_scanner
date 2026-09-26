@@ -5,13 +5,13 @@
 // 'flutter create' template.
 
 // The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = network_barcode_scanner
+PRODUCT_NAME = Network Barcode Scanner
 
 // The application's bundle identifier
 PRODUCT_BUNDLE_IDENTIFIER = com.hannesrueger.networkBarcodeScanner
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2025 com.hannesrueger. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2025 Hannes Rüger. All rights reserved.
 
 // Sign with the personal team (same as iOS) instead of ad hoc: macOS ties
 // Accessibility and Input Monitoring grants to the signature.

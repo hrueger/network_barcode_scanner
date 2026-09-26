@@ -50,8 +50,8 @@
 			<string>_barcodescan._udp</string>
 		</array>
 		<key>NSCameraUsageDescription</key>
-		<string>This app needs camera access to scan QR codes</string>
+		<string>This app needs camera access to scan barcodes</string>
 		<key>NSLocalNetworkUsageDescription</key>
-		<string>This app needs local network access to send and receive QR codes</string>
+		<string>This app needs local network access to send and receive scanned codes</string>
 	</dict>
 </plist>

@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.hannesrueger" "\0"
-            VALUE "FileDescription", "network_barcode_scanner" "\0"
+            VALUE "CompanyName", "Hannes Rueger" "\0"
+            VALUE "FileDescription", "Network Barcode Scanner" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "network_barcode_scanner" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2025 com.hannesrueger. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2025 Hannes Rueger. All rights reserved." "\0"
             VALUE "OriginalFilename", "network_barcode_scanner.exe" "\0"
-            VALUE "ProductName", "network_barcode_scanner" "\0"
+            VALUE "ProductName", "Network Barcode Scanner" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
