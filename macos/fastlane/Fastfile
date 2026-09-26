@@ -115,6 +115,21 @@ platform :mac do
     UI.success("Built #{dmg_path}")
   end
 
+  desc 'Put the Developer ID certificate into the match repo. Once, by hand, never on CI'
+  desc 'cert: path to the .cer, p12: path to the .p12 with its private key and no password'
+  lane :import_developer_id do |options|
+    require 'match'
+    # `fastlane match import` asks for the paths interactively; the importer
+    # takes them directly. skip_certificate_matching: the certificate already
+    # exists, so match must not look for (or create) one on the portal.
+    params = FastlaneCore::Configuration.create(
+      Match::Options.available_options,
+      { type: 'developer_id', platform: 'macos', skip_certificate_matching: true, readonly: false }
+    )
+    params.load_configuration_file('Matchfile')
+    Match::Importer.new.import_cert(params, cert_path: options[:cert], p12_path: options[:p12])
+  end
+
   desc 'Build, notarize and staple the DMG'
   lane :release do
     api_key = asc_key

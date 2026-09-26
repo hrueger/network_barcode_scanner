@@ -6,10 +6,10 @@
 # the technikpool values.
 #
 # Getting the existing certificate into the repo, once, on a Mac that has it
-# in the keychain. Export it from Keychain Access as .cer and as .p12 (with
-# its private key), then:
-#   MATCH_GIT_URL=... MATCH_PASSWORD=... bundle exec fastlane match import \
-#     --type developer_id --platform macos --skip_certificate_matching true
+# in the keychain: export it as .cer and as .p12 with its private key and an
+# empty password, then
+#   MATCH_GIT_URL=... MATCH_PASSWORD=... fastlane mac import_developer_id \
+#     cert:/path/to/devid.cer p12:/path/to/devid.p12
 # This does not create a certificate. Apple allows only a few Developer ID
 # certificates per team, so never let match mint one by running it with
 # readonly false.
