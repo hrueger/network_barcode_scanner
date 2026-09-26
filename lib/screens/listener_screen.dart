@@ -7,7 +7,9 @@ import 'package:keypress_simulator/keypress_simulator.dart';
 import 'package:bixat_key_mouse/bixat_key_mouse.dart';
 import '../services/udp_service.dart';
 import '../services/settings_service.dart';
+import '../services/mac_keyboard_service.dart';
 import '../services/sound_service.dart';
+import 'auto_type_permission_view.dart';
 import 'settings_screen.dart';
 
 class ListenerScreen extends StatefulWidget {
@@ -35,48 +37,41 @@ class _ListenerScreenState extends State<ListenerScreen> {
   Future<void> _typeQueue = Future.value();
   bool _isListening = false;
 
+  final MacKeyboardService _macKeyboard = MacKeyboardService();
+
+  /// Only ever false on macOS, until the app may post keystrokes
+  bool _canType = true;
+
   @override
   void initState() {
     super.initState();
     _startListening();
-    _checkAccessPermissions();
+    _initTyping();
   }
 
-  Future<void> _checkAccessPermissions() async {
-    // bixat_key_mouse types the text on every desktop platform
-    if (Platform.isLinux || Platform.isMacOS || Platform.isWindows) {
+  Future<void> _initTyping() async {
+    if (Platform.isMacOS) {
+      await _refreshCanType();
+    } else if (Platform.isLinux || Platform.isWindows) {
       await BixatKeyMouse.initialize();
     }
+  }
 
-    // Only check on platforms that support keyboard simulation
-    if (!Platform.isMacOS && !Platform.isWindows) return;
-
-    // Only check if auto-type is enabled
-    if (!_settings.autoTypeOnReceive) return;
-
+  Future<void> _refreshCanType() async {
+    if (!Platform.isMacOS) return;
     try {
-      final hasAccess = await keyPressSimulator.isAccessAllowed();
-      if (!hasAccess && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text(
-              'Accessibility permission required for auto-type feature. Tap to grant access.',
-            ),
-            duration: const Duration(seconds: 5),
-            backgroundColor: Colors.orange,
-            action: SnackBarAction(
-              label: 'Grant',
-              textColor: Colors.white,
-              onPressed: () async {
-                await keyPressSimulator.requestAccess();
-              },
-            ),
-          ),
-        );
-      }
+      final canType = await _macKeyboard.canPostEvents();
+      if (mounted) setState(() => _canType = canType);
     } catch (e) {
-      log('Error checking accessibility permissions: $e');
+      log('Error checking keystroke permission: $e');
     }
+  }
+
+  bool get _needsPermission => _settings.autoTypeOnReceive && !_canType;
+
+  Future<void> _disableAutoType() async {
+    await _settings.setAutoTypeOnReceive(false);
+    if (mounted) setState(() {});
   }
 
   Future<void> _startListening() async {
@@ -158,13 +153,20 @@ class _ListenerScreenState extends State<ListenerScreen> {
   Future<void> _typeText(String text) async {
     log("🎉 Typing text: $text");
     try {
+      final endKeyType = _settings.autoTypeEndKey;
+
+      if (Platform.isMacOS) {
+        await _macKeyboard.typeText(text);
+        if (endKeyType != 'none') await _macKeyboard.pressKey(endKeyType);
+        return;
+      }
+
       // enigo posts the text as a Unicode string, so case and symbols come out
       // right whatever keyboard layout is active. Mapping characters to
       // physical keys assumed a US layout and dropped the case.
       BixatKeyMouse.enterText(text: text);
 
       // Press configured end key after typing
-      final endKeyType = _settings.autoTypeEndKey;
       if (endKeyType != 'none') {
         if (Platform.isLinux) {
           if (endKeyType == 'tab') {
@@ -247,108 +249,122 @@ class _ListenerScreenState extends State<ListenerScreen> {
             ),
           IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () {
-              Navigator.push(
+            onPressed: () async {
+              await Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const SettingsScreen()),
               );
+              // Auto-type may have just been switched on or off
+              await _refreshCanType();
             },
             tooltip: 'Settings',
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: _isListening ? Colors.green.shade100 : Colors.red.shade100,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+      body: _needsPermission
+          ? AutoTypePermissionView(
+              keyboard: _macKeyboard,
+              onDisableAutoType: _disableAutoType,
+            )
+          : Column(
               children: [
-                Icon(
-                  _isListening ? Icons.wifi : Icons.wifi_off,
-                  color: _isListening ? Colors.green : Colors.red,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  _isListening ? 'Listening for QR codes...' : 'Not listening',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: _isListening
-                        ? Colors.green.shade900
-                        : Colors.red.shade900,
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  color: _isListening
+                      ? Colors.green.shade100
+                      : Colors.red.shade100,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        _isListening ? Icons.wifi : Icons.wifi_off,
+                        color: _isListening ? Colors.green : Colors.red,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _isListening
+                            ? 'Listening for QR codes...'
+                            : 'Not listening',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: _isListening
+                              ? Colors.green.shade900
+                              : Colors.red.shade900,
+                        ),
+                      ),
+                    ],
                   ),
+                ),
+                Expanded(
+                  child: _scannedCodes.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.qr_code_2,
+                                size: 80,
+                                color: Colors.grey.shade400,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No codes received yet',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Waiting for scanner broadcasts...',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey.shade500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: _scannedCodes.length,
+                          itemBuilder: (context, index) {
+                            final scannedCode = _scannedCodes[index];
+                            return Card(
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              child: ListTile(
+                                leading: const CircleAvatar(
+                                  child: Icon(Icons.qr_code_2),
+                                ),
+                                title: Text(
+                                  scannedCode.code,
+                                  style: const TextStyle(
+                                    fontFamily: 'monospace',
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  _formatTimestamp(scannedCode.timestamp),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                                trailing: IconButton(
+                                  icon: const Icon(Icons.copy),
+                                  onPressed: () =>
+                                      _copyToClipboard(scannedCode.code),
+                                  tooltip: 'Copy',
+                                ),
+                                onTap: () => _copyToClipboard(scannedCode.code),
+                              ),
+                            );
+                          },
+                        ),
                 ),
               ],
             ),
-          ),
-          Expanded(
-            child: _scannedCodes.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.qr_code_2,
-                          size: 80,
-                          color: Colors.grey.shade400,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No codes received yet',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Waiting for scanner broadcasts...',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey.shade500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: _scannedCodes.length,
-                    itemBuilder: (context, index) {
-                      final scannedCode = _scannedCodes[index];
-                      return Card(
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        child: ListTile(
-                          leading: const CircleAvatar(
-                            child: Icon(Icons.qr_code_2),
-                          ),
-                          title: Text(
-                            scannedCode.code,
-                            style: const TextStyle(fontFamily: 'monospace'),
-                          ),
-                          subtitle: Text(
-                            _formatTimestamp(scannedCode.timestamp),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.copy),
-                            onPressed: () => _copyToClipboard(scannedCode.code),
-                            tooltip: 'Copy',
-                          ),
-                          onTap: () => _copyToClipboard(scannedCode.code),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
     );
   }
 }
