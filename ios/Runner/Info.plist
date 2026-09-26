@@ -45,6 +45,10 @@
 		<true/>
 		<key>UIApplicationSupportsIndirectInputEvents</key>
 		<true/>
+		<key>NSBonjourServices</key>
+		<array>
+			<string>_barcodescan._udp</string>
+		</array>
 		<key>NSCameraUsageDescription</key>
 		<string>This app needs camera access to scan QR codes</string>
 		<key>NSLocalNetworkUsageDescription</key>

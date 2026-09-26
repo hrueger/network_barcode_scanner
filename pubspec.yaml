@@ -43,6 +43,7 @@ dependencies:
     # FFI platforms it does not ship, which breaks `flutter build apk`.
     bixat_key_mouse:
         path: packages/bixat_key_mouse
+    bonsoir: ^7.1.5
 
 dev_dependencies:
     flutter_test:

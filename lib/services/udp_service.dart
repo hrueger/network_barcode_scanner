@@ -4,6 +4,8 @@ import 'dart:async';
 import 'dart:math' hide log;
 import 'dart:developer';
 
+import 'package:bonsoir/bonsoir.dart';
+
 class QrMessage {
   final String id;
   final String code;
@@ -24,9 +26,19 @@ class QrMessage {
   }
 }
 
+/// Scanners find listeners over Bonjour and send each code to every one of
+/// them by unicast. The broadcast to 255.255.255.255 stays as a fallback for
+/// older app versions, but a sandboxed macOS app never receives it, and iOS
+/// may only send it with Apple's multicast entitlement.
 class UdpService {
   static const int port = 38765;
+  static const String serviceType = '_barcodescan._udp';
   RawDatagramSocket? _socket;
+  BonsoirBroadcast? _advertisement;
+  BonsoirDiscovery? _discovery;
+
+  /// Resolved listeners by Bonjour service name
+  final Map<String, List<InternetAddress>> _listeners = {};
   final StreamController<QrMessage> _messageController =
       StreamController<QrMessage>.broadcast();
 
@@ -45,15 +57,74 @@ class UdpService {
       );
       final jsonString = jsonEncode(qrMessage.toJson());
       final data = utf8.encode(jsonString);
-      socket.send(data, InternetAddress('255.255.255.255'), port);
+
+      // Listeners drop the copies by message id
+      final targets = {
+        for (final addresses in _listeners.values) ...addresses,
+        InternetAddress('255.255.255.255'),
+      };
+      for (final target in targets) {
+        socket.send(data, target, port);
+      }
 
       await Future.delayed(const Duration(milliseconds: 100));
       socket.close();
 
-      log('Sent broadcast: $jsonString');
+      log('Sent to ${targets.map((t) => t.address).join(', ')}: $jsonString');
     } catch (e) {
       log('Error sending broadcast: $e');
       rethrow;
+    }
+  }
+
+  /// Scanner side: keeps [_listeners] current for [sendBroadcast].
+  Future<void> startDiscovery() async {
+    try {
+      final discovery = BonsoirDiscovery(type: serviceType);
+      _discovery = discovery;
+      await discovery.initialize();
+      discovery.eventStream!.listen((event) async {
+        switch (event) {
+          case BonsoirDiscoveryServiceFoundEvent():
+            await discovery.serviceResolver.resolveService(event.service);
+          case BonsoirDiscoveryServiceResolvedEvent():
+          case BonsoirDiscoveryServiceUpdatedEvent():
+            final service = event.service!;
+            final addresses = await _ipv4Addresses(service);
+            if (addresses.isNotEmpty) _listeners[service.name] = addresses;
+            log('Listener ${service.name}: ${addresses.map((a) => a.address)}');
+          case BonsoirDiscoveryServiceLostEvent():
+            _listeners.remove(event.service.name);
+            log('Listener lost: ${event.service.name}');
+          default:
+            break;
+        }
+      });
+      await discovery.start();
+    } catch (e) {
+      // Broadcast still works without discovery
+      log('Error starting discovery: $e');
+    }
+  }
+
+  /// The send socket is IPv4 only. Platforms report addresses, a `.local`
+  /// hostname or both, so fall back to looking the hostname up.
+  Future<List<InternetAddress>> _ipv4Addresses(BonsoirService service) async {
+    final addresses = service.hostAddresses
+        .map(InternetAddress.tryParse)
+        .whereType<InternetAddress>()
+        .where((a) => a.type == InternetAddressType.IPv4)
+        .toList();
+    final hostname = service.hostname;
+    if (addresses.isNotEmpty || hostname == null) return addresses;
+    try {
+      return await InternetAddress.lookup(
+        hostname,
+        type: InternetAddressType.IPv4,
+      );
+    } catch (e) {
+      log('Could not resolve $hostname: $e');
+      return [];
     }
   }
 
@@ -70,6 +141,7 @@ class UdpService {
       _socket!.broadcastEnabled = true;
 
       log('Listening on port $port');
+      await _advertise();
 
       _socket!.listen((RawSocketEvent event) {
         if (event == RawSocketEvent.read) {
@@ -95,7 +167,28 @@ class UdpService {
     }
   }
 
+  /// Listener side: lets scanners find this device.
+  Future<void> _advertise() async {
+    try {
+      final advertisement = BonsoirBroadcast(
+        service: BonsoirService(
+          name: Platform.localHostname.split('.').first,
+          type: serviceType,
+          port: port,
+        ),
+      );
+      _advertisement = advertisement;
+      await advertisement.initialize();
+      await advertisement.start();
+    } catch (e) {
+      // Scanners still reach this listener by broadcast where it gets through
+      log('Error advertising listener: $e');
+    }
+  }
+
   void stopListening() {
+    _advertisement?.stop();
+    _advertisement = null;
     _socket?.close();
     _socket = null;
     log('Stopped listening');
@@ -103,6 +196,8 @@ class UdpService {
 
   void dispose() {
     stopListening();
+    _discovery?.stop();
+    _discovery = null;
     _messageController.close();
   }
 }

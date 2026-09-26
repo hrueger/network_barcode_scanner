@@ -39,6 +39,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
   @override
   void initState() {
     super.initState();
+    _udpService.startDiscovery();
     _resolveInput();
   }
 
