@@ -127,7 +127,9 @@ platform :mac do
       { type: 'developer_id', platform: 'macos', skip_certificate_matching: true, readonly: false }
     )
     params.load_configuration_file('Matchfile')
-    Match::Importer.new.import_cert(params, cert_path: options[:cert], p12_path: options[:p12])
+    # Developer ID needs no provisioning profile; an empty path skips it,
+    # where nil would make match prompt for one
+    Match::Importer.new.import_cert(params, cert_path: options[:cert], p12_path: options[:p12], profile_path: '')
   end
 
   desc 'Build, notarize and staple the DMG'
