@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'screens/scanner_screen.dart';
 import 'screens/listener_screen.dart';
 import 'services/settings_service.dart';
+import 'theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,11 +24,10 @@ class MyApp extends StatelessWidget {
         : const ListenerScreen();
 
     return MaterialApp(
-      title: 'Network QR Scanner',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-        useMaterial3: true,
-      ),
+      title: 'Network Barcode Scanner',
+      theme: buildTheme(Brightness.light),
+      darkTheme: buildTheme(Brightness.dark),
+      themeMode: ThemeMode.system,
       home: homeScreen,
     );
   }

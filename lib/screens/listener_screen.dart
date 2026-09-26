@@ -2,6 +2,8 @@ import 'dart:developer';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+
+import '../theme.dart';
 import 'package:flutter/services.dart';
 import 'package:keypress_simulator/keypress_simulator.dart';
 import 'package:bixat_key_mouse/bixat_key_mouse.dart';
@@ -141,10 +143,7 @@ class _ListenerScreenState extends State<ListenerScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error starting listener: $e'),
-            backgroundColor: Colors.red,
-          ),
+          statusSnackBar(context, 'Error starting listener: $e', Status.danger),
         );
       }
     }
@@ -187,10 +186,7 @@ class _ListenerScreenState extends State<ListenerScreen> {
       log('Error typing text: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Auto-type failed: $e'),
-            backgroundColor: Colors.red,
-          ),
+          statusSnackBar(context, 'Auto-type failed: $e', Status.danger),
         );
       }
     }
@@ -205,10 +201,11 @@ class _ListenerScreenState extends State<ListenerScreen> {
   void _copyToClipboard(String text) {
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Copied to clipboard'),
-        duration: Duration(seconds: 1),
-        backgroundColor: Colors.green,
+      statusSnackBar(
+        context,
+        'Copied to clipboard',
+        Status.success,
+        duration: const Duration(seconds: 1),
       ),
     );
   }
@@ -239,7 +236,6 @@ class _ListenerScreenState extends State<ListenerScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Listener'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
           if (_scannedCodes.isNotEmpty)
             IconButton(
@@ -268,32 +264,12 @@ class _ListenerScreenState extends State<ListenerScreen> {
             )
           : Column(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  color: _isListening
-                      ? Colors.green.shade100
-                      : Colors.red.shade100,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        _isListening ? Icons.wifi : Icons.wifi_off,
-                        color: _isListening ? Colors.green : Colors.red,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _isListening
-                            ? 'Listening for QR codes...'
-                            : 'Not listening',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: _isListening
-                              ? Colors.green.shade900
-                              : Colors.red.shade900,
-                        ),
-                      ),
-                    ],
-                  ),
+                StatusBanner(
+                  status: _isListening ? Status.success : Status.danger,
+                  icon: _isListening ? Icons.wifi : Icons.wifi_off,
+                  text: _isListening
+                      ? 'Listening for codes...'
+                      : 'Not listening',
                 ),
                 Expanded(
                   child: _scannedCodes.isEmpty
@@ -304,14 +280,16 @@ class _ListenerScreenState extends State<ListenerScreen> {
                               Icon(
                                 Icons.qr_code_2,
                                 size: 80,
-                                color: Colors.grey.shade400,
+                                color: Theme.of(context).colorScheme.outline,
                               ),
                               const SizedBox(height: 16),
                               Text(
                                 'No codes received yet',
                                 style: TextStyle(
                                   fontSize: 18,
-                                  color: Colors.grey.shade600,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                 ),
                               ),
                               const SizedBox(height: 8),
@@ -319,7 +297,9 @@ class _ListenerScreenState extends State<ListenerScreen> {
                                 'Waiting for scanner broadcasts...',
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: Colors.grey.shade500,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ],
@@ -348,7 +328,9 @@ class _ListenerScreenState extends State<ListenerScreen> {
                                   _formatTimestamp(scannedCode.timestamp),
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: Colors.grey.shade600,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                                 trailing: IconButton(

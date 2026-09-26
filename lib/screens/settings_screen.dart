@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+
+import '../theme.dart';
 import '../services/hardware_scanner_service.dart';
 import '../services/settings_service.dart';
 
@@ -119,10 +121,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _loadSettings();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Settings reset to defaults'),
-            backgroundColor: Colors.green,
-          ),
+          statusSnackBar(context, 'Settings reset to defaults', Status.success),
         );
       }
     }
@@ -133,7 +132,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Settings'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
           IconButton(
             icon: const Icon(Icons.restore),
@@ -144,20 +142,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       body: ListView(
         children: [
-          const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Text(
-              'Sound Settings',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.blue,
-              ),
-            ),
-          ),
+          _SectionHeader('Sound Settings'),
           SwitchListTile(
             title: const Text('Play Sound on Scan'),
-            subtitle: const Text('Play a sound when a QR code is scanned'),
+            subtitle: const Text('Play a sound when a code is scanned'),
             value: _playSoundOnScan,
             onChanged: (value) async {
               await _settings.setPlaySoundOnScan(value);
@@ -181,17 +169,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           if (Platform.isAndroid || Platform.isIOS) ...[
             const Divider(),
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text(
-                'Scanner Settings',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue,
-                ),
-              ),
-            ),
+            _SectionHeader('Scanner Settings'),
             ListTile(
               title: const Text('Duplicate Wait Time'),
               subtitle: Text(
@@ -299,17 +277,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const Divider(),
           ],
           if (Platform.isMacOS || Platform.isLinux || Platform.isWindows) ...[
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text(
-                'Listener Settings',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue,
-                ),
-              ),
-            ),
+            _SectionHeader('Listener Settings'),
             SwitchListTile(
               title: const Text('Auto-Type on Receive'),
               value: _autoTypeOnReceive,
@@ -351,28 +319,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'About',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.blue,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Network QR Scanner v1.0.0',
-                  style: TextStyle(color: Colors.grey.shade600),
+                  'Network Barcode Scanner v1.0.0',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Scan and share QR codes over your local network',
-                  style: TextStyle(color: Colors.grey.shade600),
+                  'Scan barcodes and type them on a computer over your local network',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final String title;
+
+  const _SectionHeader(this.title);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: Theme.of(context).colorScheme.primary,
+        ),
       ),
     );
   }

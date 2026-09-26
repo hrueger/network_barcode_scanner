@@ -3,6 +3,8 @@ import 'dart:developer';
 import 'dart:math' show max;
 
 import 'package:flutter/material.dart';
+
+import '../theme.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../services/hardware_scanner_service.dart';
@@ -165,10 +167,11 @@ class _ScannerScreenState extends State<ScannerScreen> {
         .then((_) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Sent: $code'),
+              statusSnackBar(
+                context,
+                'Sent: $code',
+                Status.success,
                 duration: const Duration(seconds: 1),
-                backgroundColor: Colors.green,
               ),
             );
           }
@@ -176,10 +179,11 @@ class _ScannerScreenState extends State<ScannerScreen> {
         .catchError((error) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Failed to send: $error'),
+              statusSnackBar(
+                context,
+                'Failed to send: $error',
+                Status.danger,
                 duration: const Duration(seconds: 2),
-                backgroundColor: Colors.red,
               ),
             );
           }
@@ -199,8 +203,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('QR Scanner'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: const Text('Scanner'),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
@@ -231,30 +234,12 @@ class _ScannerScreenState extends State<ScannerScreen> {
       valueListenable: _udpService.listenerNames,
       builder: (context, names, _) {
         final found = names.isNotEmpty;
-        final color = found ? Colors.green : Colors.orange;
-        return Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          color: found ? Colors.green.shade100 : Colors.orange.shade100,
-          child: Row(
-            children: [
-              Icon(found ? Icons.computer : Icons.warning_amber, color: color),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  found
-                      ? 'Sending to: ${names.join(', ')}'
-                      : 'No listeners found – broadcast only',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: found
-                        ? Colors.green.shade900
-                        : Colors.orange.shade900,
-                  ),
-                ),
-              ),
-            ],
-          ),
+        return StatusBanner(
+          status: found ? Status.success : Status.warning,
+          icon: found ? Icons.computer : Icons.warning_amber,
+          text: found
+              ? 'Sending to: ${names.join(', ')}'
+              : 'No listeners found – broadcast only',
         );
       },
     );
