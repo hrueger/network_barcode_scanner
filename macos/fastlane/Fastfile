@@ -1,0 +1,126 @@
+# Builds the notarized DMG that goes on the GitHub release. No App Store yet.
+#
+# Version comes from pubspec.yaml; these lanes never invent one.
+#
+#   bundle exec fastlane mac build     # signed DMG, not notarized; runs locally
+#   bundle exec fastlane mac release   # build + notarize + staple; what CI runs
+#
+# Locally the Developer ID certificate comes from your keychain. On CI it comes
+# from match (see Matchfile), which needs MATCH_GIT_URL and MATCH_PASSWORD.
+# Notarizing needs an App Store Connect API key: ASC_KEY_ID, ASC_ISSUER_ID and
+# ASC_KEY_PATH (path to the .p8), the same key technikpool uses.
+
+require 'fileutils'
+require 'tmpdir'
+
+default_platform(:mac)
+
+# __dir__ is macos/fastlane, so this is the Flutter project root
+FLUTTER_PROJECT = File.expand_path('../..', __dir__)
+APP_NAME = 'Network Barcode Scanner'
+APP = File.join(FLUTTER_PROJECT, "build/macos/Build/Products/Release/#{APP_NAME}.app")
+DMG_DIR = File.join(FLUTTER_PROJECT, 'build/dmg')
+SIGNING_XCCONFIG = File.expand_path('../Runner/Configs/DeveloperID.xcconfig', __dir__)
+
+# fastlane's Ruby environment leaks into child processes, and CocoaPods,
+# which `flutter build macos` runs, then fails to load its own gems.
+RUBY_ENV = %w[GEM_HOME GEM_PATH RUBYOPT RUBYLIB BUNDLE_GEMFILE BUNDLE_BIN_PATH BUNDLER_VERSION BUNDLER_SETUP].freeze
+
+def flutter(*args)
+  saved = RUBY_ENV.to_h { |name| [name, ENV.delete(name)] }
+  Dir.chdir(FLUTTER_PROJECT) { sh('flutter', *args) }
+ensure
+  saved.each { |name, value| ENV[name] = value if value }
+end
+
+def version
+  line = File.read(File.join(FLUTTER_PROJECT, 'pubspec.yaml'))[/^version:\s*(\S+)/, 1]
+  UI.user_error!('No version in pubspec.yaml') unless line
+  line.split('+').first
+end
+
+def dmg_path
+  File.join(DMG_DIR, "network-barcode-scanner-#{version}-macos.dmg")
+end
+
+def asc_key
+  %w[ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_PATH].each do |name|
+    UI.user_error!("#{name} is not set, see the comment at the top of this Fastfile") if
+      ENV[name].to_s.empty?
+  end
+  app_store_connect_api_key(
+    key_id: ENV.fetch('ASC_KEY_ID'),
+    issuer_id: ENV.fetch('ASC_ISSUER_ID'),
+    key_filepath: ENV.fetch('ASC_KEY_PATH'),
+    in_house: false
+  )
+end
+
+# On CI the runner's keychain is empty, so fetch the certificate from match
+# into a throwaway keychain. Locally the login keychain already has it.
+def install_certificate
+  return unless is_ci
+  %w[MATCH_GIT_URL MATCH_PASSWORD].each do |name|
+    UI.user_error!("#{name} is not set, see macos/fastlane/Matchfile") if ENV[name].to_s.empty?
+  end
+  setup_ci
+  match(skip_provisioning_profiles: true)
+end
+
+# The SHA-1 of the certificate that signed the app. Naming the identity is
+# ambiguous when the keychain holds a renewed certificate next to the old one,
+# which is common for Developer ID.
+def signing_identity_of(path)
+  Dir.mktmpdir do |dir|
+    sh('codesign', '-d', "--extract-certificates=#{dir}/cert", path, log: false)
+    sh('openssl', 'x509', '-inform', 'DER', '-in', "#{dir}/cert0", '-noout', '-fingerprint', '-sha1',
+       log: false).split('=').last.delete(':').strip
+  end
+end
+
+platform :mac do
+  desc 'Build the app signed with Developer ID and wrap it in a signed DMG'
+  lane :build do
+    install_certificate
+
+    # Overrides the Apple Development signing in AppInfo.xcconfig for this
+    # build only, so the Xcode project itself never changes.
+    File.write(SIGNING_XCCONFIG, <<~XCCONFIG)
+      CODE_SIGN_STYLE = Manual
+      CODE_SIGN_IDENTITY = Developer ID Application
+      OTHER_CODE_SIGN_FLAGS = --timestamp
+      // Xcode adds get-task-allow (debugger attach) otherwise, and the notary
+      // service rejects any app that carries it
+      CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO
+    XCCONFIG
+    begin
+      flutter('pub', 'get')
+      flutter('build', 'macos', '--release')
+    ensure
+      FileUtils.rm_f(SIGNING_XCCONFIG)
+    end
+    UI.user_error!("No app at #{APP}") unless File.exist?(APP)
+    sh('codesign', '--verify', '--deep', '--strict', APP)
+
+    FileUtils.mkdir_p(DMG_DIR)
+    FileUtils.rm_f(dmg_path)
+    Dir.mktmpdir do |staging|
+      # ditto, not cp: it keeps the framework symlinks the signature covers
+      sh('ditto', APP, File.join(staging, "#{APP_NAME}.app"))
+      File.symlink('/Applications', File.join(staging, 'Applications'))
+      sh('hdiutil', 'create', '-volname', APP_NAME, '-srcfolder', staging,
+         '-ov', '-format', 'UDZO', dmg_path)
+    end
+    sh('codesign', '--sign', signing_identity_of(APP), '--timestamp', dmg_path)
+    UI.success("Built #{dmg_path}")
+  end
+
+  desc 'Build, notarize and staple the DMG'
+  lane :release do
+    api_key = asc_key
+    build
+    # Uploads to Apple's notary service, waits for the verdict and staples the
+    # ticket to the DMG, so Gatekeeper accepts it offline too.
+    notarize(package: dmg_path, api_key: api_key, print_log: true)
+  end
+end

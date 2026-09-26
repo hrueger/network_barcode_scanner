@@ -1,0 +1,17 @@
+# Copy to android/key.properties and fill in. Never commit the real thing;
+# android/.gitignore already covers key.properties and *.jks.
+#
+# Create the upload key once:
+#   keytool -genkeypair -keystore ~/network-barcode-scanner-upload.jks \
+#     -storetype PKCS12 -alias upload -keyalg RSA -keysize 2048 -validity 10000
+#
+# Every APK on the GitHub releases is signed with this key, and Android only
+# installs an update signed with the same key. Losing it means users must
+# uninstall before they can update. Keep a backup.
+#
+# storePassword and keyPassword are the SAME value: a PKCS12 keystore has one
+# password for the whole file, and keytool silently ignores a separate -keypass.
+storeFile=/absolute/path/to/network-barcode-scanner-upload.jks
+storePassword=
+keyAlias=upload
+keyPassword=

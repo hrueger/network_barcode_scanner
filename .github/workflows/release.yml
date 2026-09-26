@@ -1,0 +1,277 @@
+name: Release
+
+# A tag v1.2.3 builds every platform and publishes a GitHub release with:
+#   network-barcode-scanner-1.2.3.apk               Android, signed with the upload key
+#   network-barcode-scanner-1.2.3-macos.dmg         macOS, Developer ID, notarized
+#   network-barcode-scanner-1.2.3-windows-x64.zip   Windows, unsigned
+#   network-barcode-scanner-1.2.3-linux-x64.tar.gz  Linux
+#
+# The tag must match `version:` in pubspec.yaml. Bump that first, commit, then
+# tag the commit.
+#
+# A platform whose secrets are missing fails the whole release instead of
+# being skipped: a release without its DMG would look exactly like a complete
+# one.
+on:
+  push:
+    tags:
+      - 'v[0-9]*'
+  # Rebuilding an existing tag (a secret was wrong, the notary was down)
+  # without a fake version bump. The assets on its release get replaced.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to rebuild, e.g. v1.2.3'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: '3.47.4'
+  TAG: ${{ inputs.tag || github.ref_name }}
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.TAG }}
+      - id: check
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          pubspec="$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml)"
+          if [ "$version" != "$pubspec" ]; then
+            echo "::error::Tag $TAG does not match version $pubspec in pubspec.yaml" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  android:
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+          working-directory: android
+
+      # The upload key exists only for the length of this job, and is removed
+      # below even if the build fails.
+      - name: Write signing credentials
+        working-directory: android
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          for name in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Secret ANDROID_$name is not set" >&2
+              exit 1
+            fi
+          done
+          echo "$KEYSTORE_BASE64" | base64 --decode > upload.jks
+          # PKCS12 has one password for store and key, see key.properties.example
+          cat > key.properties <<EOF
+          storeFile=$PWD/upload.jks
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEYSTORE_PASSWORD
+          EOF
+
+      - name: Build the APK
+        working-directory: android
+        run: bundle exec fastlane android apk
+
+      - name: Shred credentials
+        if: always()
+        working-directory: android
+        run: rm -f upload.jks key.properties
+
+      - run: cp build/app/outputs/flutter-apk/app-release.apk "network-barcode-scanner-${{ needs.version.outputs.version }}.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: network-barcode-scanner-*.apk
+          if-no-files-found: error
+
+  macos:
+    needs: version
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+          working-directory: macos
+
+      # A macOS runner starts with no known_hosts, so match's first clone of the
+      # certificates repo would stop on an interactive host-key prompt.
+      - name: Trust github.com for ssh
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts
+
+      - name: Write the App Store Connect key
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          set -euo pipefail
+          if [ -z "$ASC_KEY_P8" ]; then
+            echo "::error::Secret ASC_KEY_P8 is not set" >&2
+            exit 1
+          fi
+          echo "$ASC_KEY_P8" | base64 --decode > "$RUNNER_TEMP/asc_key.p8"
+
+      - name: Build, sign and notarize the DMG
+        working-directory: macos
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_PATH: ${{ runner.temp }}/asc_key.p8
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          # A read-only deploy key on the certificates repo, not a PAT, which
+          # would carry whatever else the issuing account can reach
+          MATCH_GIT_PRIVATE_KEY: ${{ secrets.MATCH_GIT_PRIVATE_KEY }}
+        run: bundle exec fastlane mac release
+
+      - name: Shred credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/asc_key.p8"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: build/dmg/network-barcode-scanner-*-macos.dmg
+          if-no-files-found: error
+
+  windows:
+    needs: version
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - run: flutter build windows --release
+
+      # Unsigned for now: SmartScreen warns on first start. Signing arrives
+      # with the Microsoft Store (MSIX).
+      - name: Zip the build
+        shell: pwsh
+        run: |
+          $name = "network-barcode-scanner-${{ needs.version.outputs.version }}-windows-x64"
+          Copy-Item -Recurse build/windows/x64/runner/Release $name
+          Compress-Archive -Path $name -DestinationPath "$name.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: network-barcode-scanner-*-windows-x64.zip
+          if-no-files-found: error
+
+  linux:
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.TAG }}
+
+      # GTK and the Flutter toolchain, GStreamer for audioplayers, libxdo for
+      # enigo's typing
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev \
+            liblzma-dev libstdc++-12-dev libgstreamer1.0-dev \
+            libgstreamer-plugins-base1.0-dev libxdo-dev
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - run: flutter build linux --release
+
+      - name: Pack the build
+        run: |
+          set -euo pipefail
+          name="network-barcode-scanner-${{ needs.version.outputs.version }}-linux-x64"
+          cp -r build/linux/x64/release/bundle "$name"
+          tar -czf "$name.tar.gz" "$name"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: network-barcode-scanner-*-linux-x64.tar.gz
+          if-no-files-found: error
+
+  release:
+    needs: [version, android, macos, windows, linux]
+    runs-on: ubuntu-latest
+    # The only job that writes to the repository
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+          merge-multiple: true
+
+      - name: Publish the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" assets/* --clobber
+          else
+            gh release create "$TAG" assets/* --title "Network Barcode Scanner $VERSION" \
+              --generate-notes --verify-tag
+          fi

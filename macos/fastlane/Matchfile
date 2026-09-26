@@ -1,0 +1,22 @@
+# Where the Developer ID certificate lives.
+#
+# The same private certificates repo as technikpool: match keeps certificates
+# per team, and a Developer ID certificate signs every app of the team, so
+# nothing here is specific to this app. MATCH_GIT_URL and MATCH_PASSWORD are
+# the technikpool values.
+#
+# Getting the existing certificate into the repo, once, on a Mac that has it
+# in the keychain. Export it from Keychain Access as .cer and as .p12 (with
+# its private key), then:
+#   MATCH_GIT_URL=... MATCH_PASSWORD=... bundle exec fastlane match import \
+#     --type developer_id --platform macos --skip_certificate_matching true
+# This does not create a certificate. Apple allows only a few Developer ID
+# certificates per team, so never let match mint one by running it with
+# readonly false.
+git_url(ENV.fetch('MATCH_GIT_URL', ''))
+storage_mode('git')
+
+type('developer_id')
+platform('macos')
+app_identifier(['com.hannesrueger.networkBarcodeScanner'])
+readonly(true)

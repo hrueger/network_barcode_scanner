@@ -5,3 +5,12 @@
 # Xcode-related
 **/dgph
 **/xcuserdata/
+
+# Written by fastlane for Developer ID builds only
+Runner/Configs/DeveloperID.xcconfig
+
+# fastlane working files
+fastlane/report.xml
+fastlane/README.md
+vendor/bundle/
+.bundle/
