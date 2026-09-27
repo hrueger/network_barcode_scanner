@@ -7,7 +7,11 @@ import '../services/hardware_scanner_service.dart';
 import '../services/settings_service.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+  const SettingsScreen({super.key, @visibleForTesting this.desktop});
+
+  /// Store screenshots render on one machine for every platform; this picks
+  /// the scanner (false) or listener (true) sections instead of the host OS.
+  final bool? desktop;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -26,10 +30,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late String _scanBroadcastExtra;
   DeviceIdentity? _device;
 
+  bool get _isDesktop =>
+      widget.desktop ??
+      (Platform.isMacOS || Platform.isLinux || Platform.isWindows);
+
   @override
   void initState() {
     super.initState();
     _loadSettings();
+    if (widget.desktop != null) return;
     HardwareScannerService().deviceInfo().then((device) {
       if (mounted) setState(() => _device = device);
     });
@@ -167,7 +176,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
             secondary: const Icon(Icons.notifications_active),
           ),
-          if (Platform.isAndroid || Platform.isIOS) ...[
+          if (!_isDesktop) ...[
             const Divider(),
             _SectionHeader('Scanner Settings'),
             ListTile(
@@ -276,7 +285,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
             const Divider(),
           ],
-          if (Platform.isMacOS || Platform.isLinux || Platform.isWindows) ...[
+          if (_isDesktop) ...[
             _SectionHeader('Listener Settings'),
             SwitchListTile(
               title: const Text('Auto-Type on Receive'),

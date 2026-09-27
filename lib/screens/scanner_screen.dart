@@ -13,8 +13,30 @@ import '../services/settings_service.dart';
 import '../services/sound_service.dart';
 import 'settings_screen.dart';
 
+/// Canned state for the store screenshots. With it the scanner shows these
+/// values and starts no camera, scan engine or network discovery.
+class ScannerPreview {
+  final List<String> listeners;
+  final String? lastScannedCode;
+
+  /// Shows the handheld screen for this device; null shows the camera.
+  final String? handheld;
+
+  /// Stands in for the camera image.
+  final Widget? cameraBackdrop;
+
+  const ScannerPreview({
+    this.listeners = const [],
+    this.lastScannedCode,
+    this.handheld,
+    this.cameraBackdrop,
+  });
+}
+
 class ScannerScreen extends StatefulWidget {
-  const ScannerScreen({super.key});
+  const ScannerScreen({super.key, @visibleForTesting this.preview});
+
+  final ScannerPreview? preview;
 
   @override
   State<ScannerScreen> createState() => _ScannerScreenState();
@@ -41,6 +63,20 @@ class _ScannerScreenState extends State<ScannerScreen> {
   @override
   void initState() {
     super.initState();
+    final preview = widget.preview;
+    if (preview != null) {
+      _udpService.listenerNames.value = preview.listeners;
+      lastScannedCode = preview.lastScannedCode;
+      _useHardware = preview.handheld != null;
+      if (preview.handheld != null) {
+        _device = DeviceIdentity(
+          manufacturer: '',
+          brand: '',
+          model: preview.handheld!,
+        );
+      }
+      return;
+    }
     _udpService.startDiscovery();
     _resolveInput();
   }
@@ -104,7 +140,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
   @override
   void dispose() {
-    _stopInput();
+    if (widget.preview == null) _stopInput();
     _udpService.dispose();
     super.dispose();
   }
@@ -286,12 +322,22 @@ class _ScannerScreenState extends State<ScannerScreen> {
   }
 
   Widget _buildCameraBody(BuildContext context) {
-    final controller = _controller!;
     final scanWindow = Rect.fromCenter(
       center: MediaQuery.sizeOf(context).center(const Offset(0, -100)),
       width: 300,
       height: 200,
     );
+    final preview = widget.preview;
+    if (preview != null) {
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          preview.cameraBackdrop ?? const ColoredBox(color: Colors.black),
+          CustomPaint(painter: _ScanWindowPainter(scanWindow)),
+        ],
+      );
+    }
+    final controller = _controller!;
     return Stack(
       children: [
         MobileScanner(
@@ -312,4 +358,35 @@ class _ScannerScreenState extends State<ScannerScreen> {
       ],
     );
   }
+}
+
+/// The camera overlay for screenshots: dims everything outside the scan
+/// window, like mobile_scanner's ScanWindowOverlay, which needs a live camera.
+class _ScanWindowPainter extends CustomPainter {
+  final Rect window;
+
+  const _ScanWindowPainter(this.window);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rounded = RRect.fromRectAndRadius(window, const Radius.circular(12));
+    canvas.drawPath(
+      Path.combine(
+        PathOperation.difference,
+        Path()..addRect(Offset.zero & size),
+        Path()..addRRect(rounded),
+      ),
+      Paint()..color = Colors.black.withValues(alpha: 0.5),
+    );
+    canvas.drawRRect(
+      rounded,
+      Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_ScanWindowPainter old) => old.window != window;
 }

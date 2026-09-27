@@ -14,8 +14,19 @@ import '../services/sound_service.dart';
 import 'auto_type_permission_view.dart';
 import 'settings_screen.dart';
 
+/// Canned state for the store screenshots. With it the listener shows these
+/// codes and binds no socket, advertises nothing and checks no permission.
+class ListenerPreview {
+  final List<ScannedCode> codes;
+  final bool canType;
+
+  const ListenerPreview({required this.codes, this.canType = true});
+}
+
 class ListenerScreen extends StatefulWidget {
-  const ListenerScreen({super.key});
+  const ListenerScreen({super.key, @visibleForTesting this.preview});
+
+  final ListenerPreview? preview;
 
   @override
   State<ListenerScreen> createState() => _ListenerScreenState();
@@ -47,6 +58,13 @@ class _ListenerScreenState extends State<ListenerScreen> {
   @override
   void initState() {
     super.initState();
+    final preview = widget.preview;
+    if (preview != null) {
+      _scannedCodes.addAll(preview.codes);
+      _isListening = true;
+      _canType = preview.canType;
+      return;
+    }
     _startListening();
     _initTyping();
   }

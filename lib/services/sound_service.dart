@@ -7,19 +7,20 @@ class SoundService {
   factory SoundService() => _instance;
   SoundService._internal();
 
-  final AudioPlayer _scanPlayer = AudioPlayer();
-  final AudioPlayer _receivePlayer = AudioPlayer();
+  /// Created on the first sound, so a device with sounds off, or a screenshot
+  /// render with no audio plugin, never initialises the audio engine
+  AudioPlayer? _player;
 
   Future<void> playPling() async {
     try {
-      await _receivePlayer.play(AssetSource('sounds/pling.mp3'));
+      await (_player ??= AudioPlayer()).play(AssetSource('sounds/pling.mp3'));
     } catch (e) {
       log('Sound playback failed: $e');
     }
   }
 
   void dispose() {
-    _scanPlayer.dispose();
-    _receivePlayer.dispose();
+    _player?.dispose();
+    _player = null;
   }
 }
