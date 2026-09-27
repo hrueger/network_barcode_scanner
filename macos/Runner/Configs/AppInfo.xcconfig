@@ -8,7 +8,7 @@
 PRODUCT_NAME = Network Barcode Scanner
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.hannesrueger.networkBarcodeScanner
+PRODUCT_BUNDLE_IDENTIFIER = events.rueger.networkBarcodeScanner
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2025 Hannes Rüger. All rights reserved.

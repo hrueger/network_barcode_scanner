@@ -21,7 +21,7 @@ default_platform(:mac)
 # __dir__ is macos/fastlane, so this is the Flutter project root
 FLUTTER_PROJECT = File.expand_path('../..', __dir__)
 APP_NAME = 'Network Barcode Scanner'
-APP_IDENTIFIER = 'com.hannesrueger.networkBarcodeScanner'
+APP_IDENTIFIER = 'events.rueger.networkBarcodeScanner'
 PKG = File.join(FLUTTER_PROJECT, 'build/macos/network-barcode-scanner.pkg')
 APP = File.join(FLUTTER_PROJECT, "build/macos/Build/Products/Release/#{APP_NAME}.app")
 DMG_DIR = File.join(FLUTTER_PROJECT, 'build/dmg')
