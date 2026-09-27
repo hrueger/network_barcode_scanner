@@ -10,6 +10,8 @@ name: Stores
 #   RELEASE_APPSTORE_IOS=true     iPhone/iPad app
 #   RELEASE_APPSTORE_MACOS=true   Mac App Store
 #   RELEASE_GOOGLE_PLAY=true      Google Play
+#   RELEASE_MSSTORE=true          Microsoft Store (also needs MSSTORE_PRODUCT_ID,
+#                                 the app's Store ID from Partner Center)
 on:
   push:
     tags:
@@ -205,3 +207,55 @@ jobs:
           name: play-bundle
           path: build/app/outputs/bundle/release/app-release.aab
           if-no-files-found: ignore
+
+  microsoft-store:
+    if: vars.RELEASE_MSSTORE == 'true'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      # Builds the Windows app and wraps it in an MSIX with the Partner Center
+      # identity from pubspec.yaml's msix_config. Unsigned: the Store signs it.
+      - name: Build the MSIX
+        shell: bash
+        run: dart run msix:create --output-path build/msix --output-name network-barcode-scanner
+
+      # Partner Center only takes API submissions once the app has one, so
+      # the very first package is uploaded by hand from here
+      - uses: actions/upload-artifact@v4
+        with:
+          name: msix
+          path: build/msix/network-barcode-scanner.msix
+          if-no-files-found: error
+
+      - uses: microsoft/setup-msstore-cli@v1
+
+      - name: Submit to the Microsoft Store
+        shell: bash
+        env:
+          TENANT_ID: ${{ secrets.MSSTORE_TENANT_ID }}
+          SELLER_ID: ${{ secrets.MSSTORE_SELLER_ID }}
+          CLIENT_ID: ${{ secrets.MSSTORE_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.MSSTORE_CLIENT_SECRET }}
+          PRODUCT_ID: ${{ vars.MSSTORE_PRODUCT_ID }}
+        run: |
+          set -euo pipefail
+          for name in TENANT_ID SELLER_ID CLIENT_ID CLIENT_SECRET PRODUCT_ID; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name is not set (secret MSSTORE_$name, or variable MSSTORE_PRODUCT_ID)" >&2
+              exit 1
+            fi
+          done
+          msstore reconfigure --tenantId "$TENANT_ID" --sellerId "$SELLER_ID" \
+            --clientId "$CLIENT_ID" --clientSecret "$CLIENT_SECRET"
+          # Uploads the package and commits the submission, which sends it to
+          # certification; it goes live when certification passes
+          msstore publish . --inputDirectory build/msix --appId "$PRODUCT_ID"

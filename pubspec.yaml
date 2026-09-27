@@ -56,6 +56,7 @@ dev_dependencies:
     # rules and activating additional ones.
     flutter_lints: ^6.0.0
     flutter_launcher_icons: ^0.14.4
+    msix: ^3.18.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -112,3 +113,19 @@ flutter_launcher_icons:
     windows:
         generate: true
         icon_size: 256
+
+# Microsoft Store package. The identity values come from Partner Center
+# (product › Product identity) and must match exactly, or the Store rejects the
+# upload. store: true leaves signing to the Store, so this MSIX installs only
+# from there. Build with: dart run msix:create
+msix_config:
+    display_name: Network Barcode Scanner
+    publisher_display_name: Rüger Events - Software und Veranstaltungstechnik
+    identity_name: RgerEvents-SoftwareundVer.NetworkBarcodeScanner
+    publisher: CN=BC08272F-45B2-422C-A0E2-46EE2F2D1DDA
+    logo_path: assets/icon/icon.png
+    languages: en-us, de-de
+    # privateNetworkClientServer lets the listener receive codes on the local
+    # network without a firewall prompt
+    capabilities: internetClientServer, privateNetworkClientServer
+    store: true
