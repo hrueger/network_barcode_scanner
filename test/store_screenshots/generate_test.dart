@@ -109,6 +109,34 @@ final handheldShots = [
   ),
 ];
 
+/// Android adds the handheld screen, which only exists there.
+final androidShots = [
+  handheldShots[0],
+  Shot(
+    'handheld',
+    {
+      'en-US': (
+        "Uses your handheld's scan trigger",
+        'Chainway, Sunmi and other Android handhelds',
+      ),
+      'de-DE': (
+        'Nutzt den Scan-Knopf deines Handhelds',
+        'Chainway, Sunmi und andere Android-Handhelds',
+      ),
+    },
+    Brightness.light,
+    () => const ScannerScreen(
+      preview: ScannerPreview(
+        listeners: ['Front Desk PC'],
+        handheld: 'Chainway C90',
+        lastScannedCode: '40000395',
+      ),
+    ),
+  ),
+  handheldShots[1],
+  handheldShots[2],
+];
+
 final desktopShots = [
   Shot(
     'listener',
@@ -159,6 +187,8 @@ final desktopShots = [
 
 String _outputDir(StoreDevice device, String locale) => switch (device) {
   StoreDevice.iphone || StoreDevice.ipad => 'ios/fastlane/screenshots/$locale',
+  StoreDevice.android =>
+    'android/fastlane/metadata/android/$locale/images/phoneScreenshots',
   StoreDevice.mac => 'macos/fastlane/screenshots/$locale',
   StoreDevice.windows => 'windows/store/screenshots/$locale',
 };
@@ -202,7 +232,11 @@ void main() {
   });
 
   for (final device in StoreDevice.values) {
-    final shots = device.isDesktop ? desktopShots : handheldShots;
+    final shots = switch (device) {
+      StoreDevice.mac || StoreDevice.windows => desktopShots,
+      StoreDevice.android => androidShots,
+      _ => handheldShots,
+    };
     for (final locale in locales) {
       for (final (index, shot) in shots.indexed) {
         testWidgets('${device.name} $locale ${shot.name}', skip: !generate, (
@@ -254,5 +288,43 @@ void main() {
         });
       }
     }
+  }
+
+  for (final (locale, tagline) in const [
+    ('en-US', 'Scanned on the phone,\ntyped on the computer'),
+    ('de-DE', 'Am Handy gescannt,\nam Rechner getippt'),
+  ]) {
+    testWidgets('android $locale feature graphic', skip: !generate, (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1024, 500);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final icon = MemoryImage(File('assets/icon/icon.png').readAsBytesSync());
+      final key = GlobalKey();
+      await tester.pumpWidget(
+        RepaintBoundary(
+          key: key,
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: FeatureGraphic(icon: icon, tagline: tagline),
+          ),
+        ),
+      );
+      await tester.runAsync(() => precacheImage(icon, key.currentContext!));
+      await tester.pumpAndSettle();
+
+      final boundary =
+          key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+      final png = await tester.runAsync(() async {
+        final image = await boundary.toImage();
+        final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+        return bytes!.buffer.asUint8List();
+      });
+      final dir = Directory('android/fastlane/metadata/android/$locale/images')
+        ..createSync(recursive: true);
+      File('${dir.path}/featureGraphic.png').writeAsBytesSync(png!);
+    });
   }
 }

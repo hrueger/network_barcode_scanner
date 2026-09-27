@@ -1,0 +1,20 @@
+Scanne einen Barcode mit dem Handy oder mit dem Scan-Knopf eines Android-Handhelds, und er wird am Rechner getippt, als wäre ein USB-Barcodescanner angeschlossen. Kein Kabel, kein Koppeln, kein Konto.
+
+SO FUNKTIONIERT'S
+Installiere Network Barcode Scanner auf dem Handy und auf deinem Mac, Windows- oder Linux-Rechner. Das Handy findet die Rechner im Netzwerk von selbst und schickt jeden gescannten Code an alle. Am Rechner erscheinen die Codes in einer Liste, und mit Auto-Type werden sie in die gerade aktive App getippt, gefolgt von Enter oder Tab.
+
+GEMACHT FÜR HANDHELDS
+Auf Handhelds mit eingebautem Scanner, etwa dem Chainway C90 oder Geräten von Sunmi, nutzt die App den Scan-Knopf statt der Kamera. Für andere Geräte lassen sich die Broadcast-Einstellungen anpassen.
+
+GEMACHT FÜR THEKE UND LAGER
+• Tickets einlassen, Artikel nachschlagen, Bestand zählen oder Formulare ausfüllen
+• Liest alle gängigen Barcodes und QR-Codes mit der Kamera
+• Zeigt, welche Rechner deine Scans empfangen
+• Überspringt Doppelscans desselben Codes, mit einstellbarer Wartezeit
+• Bestätigt jeden Scan mit einem Ton
+• Heller und dunkler Modus
+
+DATENSCHUTZ EINGEBAUT
+Die Codes bleiben in deinem lokalen Netzwerk und gehen direkt vom Handy an deine Rechner. Die App hat kein Konto, keine Analyse und keine Werbung und erhebt keine Daten.
+
+Die App für den Rechner ist ebenfalls kostenlos: projects.hannesrueger.de/network_barcode_scanner

@@ -1,8 +1,17 @@
-# Builds the APK that goes on the GitHub release. No store upload yet.
+# The APK for the GitHub release, and the app bundle for Google Play.
 #
-# Version and build number come from pubspec.yaml; these lanes never invent one.
+#   bundle exec fastlane android apk          # signed APK; what release.yml runs
+#   bundle exec fastlane android production   # upload to Play, full rollout; what store.yml runs
 #
-# Needs android/key.properties, see key.properties.example.
+# Version comes from pubspec.yaml. The APK takes pubspec's build number; the
+# Play upload counts up from the highest versionCode Play already has.
+#
+# Needs android/key.properties (see key.properties.example) and, for Play, a
+# service account key at android/play-store-key.json or $GOOGLE_PLAY_JSON_KEY:
+# the technikpool service account, invited to this app in the Play Console.
+#
+# The Play Console must already know the app: create it there and upload the
+# very first bundle by hand (store.yml keeps the bundle as an artifact).
 
 default_platform(:android)
 
@@ -10,6 +19,18 @@ default_platform(:android)
 # where flutter must run and where it writes build/.
 FLUTTER_PROJECT = File.expand_path('../..', __dir__)
 APK = File.join(FLUTTER_PROJECT, 'build/app/outputs/flutter-apk/app-release.apk')
+AAB = File.join(FLUTTER_PROJECT, 'build/app/outputs/bundle/release/app-release.aab')
+
+def require_upload_key
+  # A missing key.properties does not fail the build: Gradle falls back to
+  # the debug key, which nobody notices until a device or Play refuses it.
+  UI.user_error!('android/key.properties is missing, the build would be signed with the debug key') unless
+    File.exist?(File.join(FLUTTER_PROJECT, 'android/key.properties'))
+end
+
+def pubspec_build_number
+  File.read(File.join(FLUTTER_PROJECT, 'pubspec.yaml'))[/^version:\s*\S+\+(\d+)/, 1].to_i
+end
 
 platform :android do
   desc 'Build a signed universal APK for the GitHub release'
@@ -18,8 +39,7 @@ platform :android do
     # the debug key and the APK installs fine. It just cannot update a copy
     # signed with the real key, which nobody notices until a device refuses
     # the next version.
-    UI.user_error!('android/key.properties is missing, the APK would be signed with the debug key') unless
-      File.exist?(File.join(FLUTTER_PROJECT, 'android/key.properties'))
+    require_upload_key
     Dir.chdir(FLUTTER_PROJECT) do
       sh('flutter', 'pub', 'get')
       # One fat APK for every ABI rather than --split-per-abi: whoever downloads
@@ -28,5 +48,38 @@ platform :android do
     end
     UI.user_error!("No APK at #{APK}") unless File.exist?(APK)
     UI.success("Built #{APK}")
+  end
+
+  desc 'Build the signed app bundle for Google Play'
+  lane :bundle do
+    require_upload_key
+    known = %w[internal alpha beta production].flat_map do |track|
+      google_play_track_version_codes(track: track)
+    rescue StandardError
+      [] # a track, or the whole app, Play has no release for yet
+    end
+    version_code = [known.max.to_i, pubspec_build_number - 1].max + 1
+    Dir.chdir(FLUTTER_PROJECT) do
+      sh('flutter', 'pub', 'get')
+      sh('flutter', 'build', 'appbundle', '--release', "--build-number=#{version_code}")
+    end
+    UI.user_error!("No bundle at #{AAB}") unless File.exist?(AAB)
+    UI.success("Built #{AAB} with versionCode #{version_code}")
+  end
+
+  desc 'Build and publish to production, full rollout, with listing and images'
+  lane :production do
+    bundle
+    upload_to_play_store(
+      track: 'production',
+      aab: AAB,
+      skip_upload_apk: true,
+      # fastlane/metadata/android is the listing: texts, the changelog, the
+      # icon, the feature graphic and the screenshots test/store_screenshots
+      # renders. What isn't there stays as set in the Play Console.
+      # 'completed' without a rollout fraction is a 100% release; Google
+      # still reviews it first.
+      release_status: 'completed'
+    )
   end
 end

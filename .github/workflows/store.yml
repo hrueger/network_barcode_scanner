@@ -9,6 +9,7 @@ name: Stores
 # Actions › Variables once the store is set up:
 #   RELEASE_APPSTORE_IOS=true     iPhone/iPad app
 #   RELEASE_APPSTORE_MACOS=true   Mac App Store
+#   RELEASE_GOOGLE_PLAY=true      Google Play
 on:
   push:
     tags:
@@ -135,3 +136,70 @@ jobs:
       - name: Shred credentials
         if: always()
         run: rm -f "$RUNNER_TEMP/asc_key.p8"
+
+  google-play:
+    if: vars.RELEASE_GOOGLE_PLAY == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+          working-directory: android
+
+      - name: Write signing and Play credentials
+        working-directory: android
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          PLAY_JSON_KEY: ${{ secrets.GOOGLE_PLAY_JSON_KEY }}
+        run: |
+          set -euo pipefail
+          for name in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS PLAY_JSON_KEY; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Secret for $name is not set" >&2
+              exit 1
+            fi
+          done
+          echo "$KEYSTORE_BASE64" | base64 --decode > upload.jks
+          printf '%s\n' "$PLAY_JSON_KEY" > play-store-key.json
+          cat > key.properties <<EOF
+          storeFile=$PWD/upload.jks
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEYSTORE_PASSWORD
+          EOF
+
+      - name: Upload to production
+        working-directory: android
+        run: bundle exec fastlane android production
+
+      - name: Shred credentials
+        if: always()
+        working-directory: android
+        run: rm -f upload.jks play-store-key.json key.properties
+
+      # Play only accepts API uploads once the app has a bundle, so the very
+      # first one is uploaded by hand from here
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: play-bundle
+          path: build/app/outputs/bundle/release/app-release.aab
+          if-no-files-found: ignore

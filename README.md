@@ -118,3 +118,24 @@ Signing:
   (`MATCH_*` secrets), notarized with the App Store Connect API key (`ASC_*`
   secrets). `cd macos && fastlane mac build` produces the same signed DMG
   locally, without notarizing.
+
+### Stores
+
+[`.github/workflows/store.yml`](.github/workflows/store.yml) runs on the same
+tags and uploads to each store whose repository variable is `true`
+(`RELEASE_APPSTORE_IOS`, `RELEASE_APPSTORE_MACOS`, `RELEASE_GOOGLE_PLAY`). It
+submits for review and releases on approval.
+
+The listings live in the repo: texts in `ios/fastlane/metadata`,
+`macos/fastlane/metadata` and `android/fastlane/metadata/android`, the Microsoft
+Store listing in `windows/store/listing`. Screenshots and the Play feature
+graphic are rendered from the app's own screens:
+
+```bash
+flutter test test/store_screenshots --dart-define=STORE_SCREENSHOTS=true
+```
+
+The privacy policy and support pages the listings link to are in `docs/`,
+published by GitHub Pages at
+<https://projects.hannesrueger.de/network_barcode_scanner/>.
+

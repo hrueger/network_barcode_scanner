@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:network_barcode_scanner/theme.dart';
 
 /// The devices the stores want screenshots for, at the exact pixel sizes
-/// App Store Connect and Partner Center accept.
+/// App Store Connect, Google Play and Partner Center accept.
 enum StoreDevice {
   iphone(Size(1320, 2868), 3, 'iphone', Size(440, 956)),
+  // Play allows at most 2:1, which rules out reusing the iPhone shots
+  android(Size(1080, 1920), 2.625, 'android', Size(412, 892)),
   ipad(Size(2064, 2752), 2, 'ipad', Size(1032, 1376)),
   mac(Size(2880, 1800), 2, 'mac', Size(1040, 600)),
   windows(Size(1920, 1080), 1.5, 'windows', Size(1000, 600));
@@ -140,9 +142,10 @@ class StoreFrame extends StatelessWidget {
 
   Widget _handheld() {
     final isPhone = device == StoreDevice.iphone;
-    final radius = isPhone ? 56.0 : 32.0;
-    final bezel = isPhone ? 12.0 : 18.0;
-    final statusBar = isPhone ? 54.0 : 28.0;
+    final isAndroid = device == StoreDevice.android;
+    final radius = isPhone ? 56.0 : (isAndroid ? 36.0 : 32.0);
+    final bezel = isPhone ? 12.0 : (isAndroid ? 10.0 : 18.0);
+    final statusBar = isPhone ? 54.0 : (isAndroid ? 36.0 : 28.0);
     return Container(
       padding: EdgeInsets.all(bezel),
       decoration: BoxDecoration(
@@ -166,8 +169,24 @@ class StoreFrame extends StatelessWidget {
               left: 0,
               right: 0,
               height: statusBar,
-              child: _StatusBar(isPhone: isPhone),
+              child: _StatusBar(device: device),
             ),
+            if (isAndroid)
+              Positioned(
+                top: 10,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    width: 18,
+                    height: 18,
+                    decoration: const BoxDecoration(
+                      color: Colors.black,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ),
             if (isPhone)
               Positioned(
                 top: 11,
@@ -227,37 +246,39 @@ class StoreFrame extends StatelessWidget {
 }
 
 class _StatusBar extends StatelessWidget {
-  final bool isPhone;
+  final StoreDevice device;
 
-  const _StatusBar({required this.isPhone});
+  const _StatusBar({required this.device});
 
   @override
   Widget build(BuildContext context) {
-    const style = TextStyle(
-      fontFamily: 'Inter',
-      fontWeight: FontWeight.w600,
-      fontSize: 17,
+    final isPhone = device == StoreDevice.iphone;
+    final isAndroid = device == StoreDevice.android;
+    final style = TextStyle(
+      fontFamily: isAndroid ? 'Roboto' : 'Inter',
+      fontWeight: isAndroid ? FontWeight.w500 : FontWeight.w600,
+      fontSize: isAndroid ? 14 : 17,
       color: Colors.white,
     );
     return Padding(
       padding: EdgeInsets.fromLTRB(
         isPhone ? 44 : 24,
-        isPhone ? 18 : 6,
+        isPhone ? 18 : (isAndroid ? 9 : 6),
         isPhone ? 34 : 24,
         0,
       ),
       child: Row(
         children: [
-          const Text('9:41', style: style),
+          Text(isAndroid ? '12:30' : '9:41', style: style),
           const Spacer(),
           for (final icon in [
-            Icons.signal_cellular_alt,
             Icons.wifi,
-            Icons.battery_full,
+            Icons.signal_cellular_alt,
+            isAndroid ? Icons.battery_5_bar : Icons.battery_full,
           ])
             Padding(
               padding: const EdgeInsets.only(left: 5),
-              child: Icon(icon, size: 19, color: Colors.white),
+              child: Icon(icon, size: isAndroid ? 16 : 19, color: Colors.white),
             ),
         ],
       ),
@@ -443,4 +464,89 @@ class _BarcodePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_BarcodePainter old) => old.code != code;
+}
+
+/// Google Play's feature graphic: icon, name and tagline on the brand
+/// background, 1024 x 500.
+class FeatureGraphic extends StatelessWidget {
+  final ImageProvider icon;
+  final String tagline;
+
+  const FeatureGraphic({super.key, required this.icon, required this.tagline});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 1024,
+      height: 500,
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF14B8A6), Color(0xFF0F5F63)],
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 72),
+          child: Row(
+            children: [
+              // Shadow and a light rim, or the icon's gradient melts into the
+              // background, which is the same gradient
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(52),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.5),
+                    width: 3,
+                  ),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x66000000),
+                      blurRadius: 30,
+                      offset: Offset(0, 12),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(49),
+                  child: Image(image: icon, width: 230, height: 230),
+                ),
+              ),
+              const SizedBox(width: 56),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Network Barcode Scanner',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontWeight: FontWeight.w700,
+                        fontSize: 54,
+                        height: 1.1,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      tagline,
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontWeight: FontWeight.w600,
+                        fontSize: 28,
+                        height: 1.3,
+                        color: Colors.white.withValues(alpha: 0.88),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
