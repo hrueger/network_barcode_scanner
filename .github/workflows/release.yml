@@ -300,6 +300,13 @@ jobs:
 
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "${assets[@]}" --clobber
+            # A rebuild may have filled a gap, so replace the missing-platforms
+            # line from the previous run instead of leaving it stale
+            body="$(gh release view "$TAG" --json body --jq .body | sed '/^Not included in this release:/d')"
+            if [ -n "$notes" ]; then
+              body="$(printf '%s\n\n%s' "$notes" "$body")"
+            fi
+            printf '%s\n' "$body" | sed '/./,$!d' | gh release edit "$TAG" --notes-file -
           else
             gh release create "$TAG" "${assets[@]}" --title "Network Barcode Scanner $VERSION" \
               --notes "$notes" --generate-notes --verify-tag
