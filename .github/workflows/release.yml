@@ -6,8 +6,9 @@ name: Release
 #   network-barcode-scanner-1.2.3-windows-x64.zip   Windows, unsigned
 #   network-barcode-scanner-1.2.3-linux-x64.tar.gz  Linux
 #
-# The tag must match `version:` in pubspec.yaml. Bump that first, commit, then
-# tag the commit.
+# The tag must match `version:` in pubspec.yaml and have an entry in
+# changelog.json, whose lines become the release notes. tool/release.dart does
+# all of that: dart run tool/release.dart 1.2.3
 #
 # A platform that fails, for instance because its secrets are not set up yet,
 # shows red in the run but does not hold back the others: the release is
@@ -38,6 +39,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.check.outputs.version }}
+      notes: ${{ steps.check.outputs.notes }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -51,7 +53,21 @@ jobs:
             echo "::error::Tag $TAG does not match version $pubspec in pubspec.yaml" >&2
             exit 1
           fi
+          notes="$(jq -r --arg v "$version" '
+            map(select(.version == $v)) | first // empty
+            | "## What'"'"'s new\n\n" + (.en | map("- " + .) | join("\n"))
+            + "\n\n## Was ist neu\n\n" + (.de | map("- " + .) | join("\n"))
+          ' changelog.json)"
+          if [ -z "$notes" ]; then
+            echo "::error::changelog.json has no entry for $version" >&2
+            exit 1
+          fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          {
+            echo "notes<<CHANGELOG_EOF"
+            echo "$notes"
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
 
   android:
     needs: version
@@ -272,6 +288,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           VERSION: ${{ needs.version.outputs.version }}
+          CHANGELOG: ${{ needs.version.outputs.notes }}
           RESULTS: >-
             Android=${{ needs.android.result }}
             macOS=${{ needs.macos.result }}
@@ -297,6 +314,11 @@ jobs:
           if [ ${#missing[@]} -gt 0 ]; then
             notes="Not included in this release: ${missing[*]}."
           fi
+          if [ -n "$notes" ]; then
+            full_notes="$(printf '%s\n\n%s' "$notes" "$CHANGELOG")"
+          else
+            full_notes="$CHANGELOG"
+          fi
 
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "${assets[@]}" --clobber
@@ -309,5 +331,5 @@ jobs:
             printf '%s\n' "$body" | sed '/./,$!d' | gh release edit "$TAG" --notes-file -
           else
             gh release create "$TAG" "${assets[@]}" --title "Network Barcode Scanner $VERSION" \
-              --notes "$notes" --generate-notes --verify-tag
+              --notes "$full_notes" --generate-notes --verify-tag
           fi

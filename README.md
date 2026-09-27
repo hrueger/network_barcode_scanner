@@ -96,12 +96,16 @@ permission, which a sandboxed app can never get.
 
 ## Releasing
 
-Set `version:` in `pubspec.yaml`, commit, then tag the commit with the same
-version:
+Add an entry for the new version at the top of
+[`changelog.json`](changelog.json), in English and German, then run:
 
 ```bash
-git tag v1.2.3 && git push origin v1.2.3
+dart run tool/release.dart 1.2.3
 ```
+
+It writes the entry into every store's release notes, bumps `pubspec.yaml`,
+runs the analyzer and tests, commits, tags `v1.2.3` and pushes. Without an entry
+for the version it adds an empty one and stops.
 
 [`.github/workflows/release.yml`](.github/workflows/release.yml) builds all four
 platforms and publishes the GitHub release. A platform that fails doesn't hold

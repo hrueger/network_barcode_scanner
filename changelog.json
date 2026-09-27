@@ -1,0 +1,14 @@
+[
+  {
+    "version": "1.0.1",
+    "date": "2026-09-27",
+    "en": ["First release."],
+    "de": ["Erste Version."]
+  },
+  {
+    "version": "1.0.0",
+    "date": "2026-09-27",
+    "en": ["First release on GitHub."],
+    "de": ["Erste Version auf GitHub."]
+  }
+]
