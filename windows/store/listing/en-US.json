@@ -19,8 +19,8 @@
     "warehouse",
     "ticket"
   ],
-  "privacyPolicyUrl": "https://hrueger.github.io/network_barcode_scanner/privacy/",
-  "supportUrl": "https://hrueger.github.io/network_barcode_scanner/support/",
-  "website": "https://hrueger.github.io/network_barcode_scanner/",
+  "privacyPolicyUrl": "https://projects.hannesrueger.de/network_barcode_scanner/privacy/",
+  "supportUrl": "https://projects.hannesrueger.de/network_barcode_scanner/support/",
+  "website": "https://projects.hannesrueger.de/network_barcode_scanner/",
   "releaseNotes": "First release."
 }

@@ -19,8 +19,8 @@
     "Lager",
     "Kasse"
   ],
-  "privacyPolicyUrl": "https://hrueger.github.io/network_barcode_scanner/privacy/#de",
-  "supportUrl": "https://hrueger.github.io/network_barcode_scanner/support/#de",
-  "website": "https://hrueger.github.io/network_barcode_scanner/",
+  "privacyPolicyUrl": "https://projects.hannesrueger.de/network_barcode_scanner/privacy/#de",
+  "supportUrl": "https://projects.hannesrueger.de/network_barcode_scanner/support/#de",
+  "website": "https://projects.hannesrueger.de/network_barcode_scanner/",
   "releaseNotes": "Erste Version."
 }

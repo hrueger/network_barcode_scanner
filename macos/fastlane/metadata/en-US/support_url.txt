@@ -1,1 +1,1 @@
-https://hrueger.github.io/network_barcode_scanner/support/
+https://projects.hannesrueger.de/network_barcode_scanner/support/
