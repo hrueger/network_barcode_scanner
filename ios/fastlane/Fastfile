@@ -52,6 +52,22 @@ def asc_key
   )
 end
 
+# The App Review contact and notes. deliver only creates the review details
+# of a new version when given them, and fails reading them otherwise. Name
+# and email are public on the privacy page anyway; the phone number is a
+# secret, since this repository is public.
+def app_review_information(notes)
+  phone = ENV['APP_REVIEW_PHONE'].to_s
+  UI.user_error!('APP_REVIEW_PHONE is not set, App Review needs a phone number') if phone.empty?
+  {
+    first_name: 'Hannes',
+    last_name: 'Rüger',
+    email_address: 'kontakt@rueger.events',
+    phone_number: phone,
+    notes: notes
+  }
+end
+
 def require_match_env
   %w[MATCH_GIT_URL MATCH_PASSWORD].each do |name|
     UI.user_error!("#{name} is not set, see ios/fastlane/Matchfile") if ENV[name].to_s.empty?
@@ -132,6 +148,20 @@ platform :ios do
       # deliver otherwise stops for a confirmation, which on CI is a crash
       force: true,
       precheck_include_in_app_purchases: false,
+      app_review_information: app_review_information(<<~NOTES),
+        The iPhone app is the scanner half of a pair: it sends every scanned
+        barcode over the local network to the computer app, which lists the
+        codes and can type them into the app in front. The computer app is
+        the macOS version in this same App Store record.
+
+        To test, run the Mac app on the same Wi-Fi as the iPhone, allow local
+        network access on both, and scan any barcode, for example on a
+        product package. The code appears in the Mac app's list, and the
+        iPhone's bar at the top names the Mac it found.
+
+        Without a Mac on the network the iPhone shows "No listeners found".
+        The app has no account and collects no data.
+      NOTES
       submit_for_review: true,
       automatic_release: true,
       # Answered here, because an unanswered question doesn't fail the

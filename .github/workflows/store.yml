@@ -79,6 +79,7 @@ jobs:
           MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           MATCH_GIT_PRIVATE_KEY: ${{ secrets.MATCH_GIT_PRIVATE_KEY }}
+          APP_REVIEW_PHONE: ${{ secrets.APP_REVIEW_PHONE }}
         run: bundle exec fastlane ios release
 
       - name: Shred credentials
@@ -131,6 +132,7 @@ jobs:
           MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           MATCH_GIT_PRIVATE_KEY: ${{ secrets.MATCH_GIT_PRIVATE_KEY }}
+          APP_REVIEW_PHONE: ${{ secrets.APP_REVIEW_PHONE }}
         run: bundle exec fastlane mac appstore_release
 
       - name: Shred credentials

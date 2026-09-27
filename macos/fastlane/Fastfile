@@ -83,6 +83,22 @@ def signing_identity_of(path)
   end
 end
 
+# The App Review contact and notes. deliver only creates the review details
+# of a new version when given them, and fails reading them otherwise. Name
+# and email are public on the privacy page anyway; the phone number is a
+# secret, since this repository is public.
+def app_review_information(notes)
+  phone = ENV['APP_REVIEW_PHONE'].to_s
+  UI.user_error!('APP_REVIEW_PHONE is not set, App Review needs a phone number') if phone.empty?
+  {
+    first_name: 'Hannes',
+    last_name: 'Rüger',
+    email_address: 'kontakt@rueger.events',
+    phone_number: phone,
+    notes: notes
+  }
+end
+
 # Builds the app with the signing settings in [xcconfig] layered over
 # AppInfo.xcconfig, so the Xcode project itself never changes.
 def build_signed_app(xcconfig, build_number: nil)
@@ -198,6 +214,21 @@ platform :mac do
       overwrite_screenshots: true,
       force: true,
       precheck_include_in_app_purchases: false,
+      app_review_information: app_review_information(<<~NOTES),
+        The Mac app is the receiving half of a pair: it lists the barcodes the
+        iPhone app (same App Store record) scans and sends over the local
+        network, and can type each one into the app in front, like a USB
+        barcode scanner.
+
+        To test, run the iPhone app on the same Wi-Fi, allow local network
+        access on both, and scan any barcode. It appears in the Mac app's
+        list. To see it typed, turn on Auto-Type in Settings: the app asks
+        for permission to send keystrokes (listed under Accessibility) and
+        applies it after the restart it offers. It types only the codes it
+        receives and never reads the keyboard.
+
+        The app has no account and collects no data.
+      NOTES
       submit_for_review: true,
       automatic_release: true,
       submission_information: {

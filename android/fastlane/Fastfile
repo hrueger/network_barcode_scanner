@@ -70,16 +70,27 @@ platform :android do
   desc 'Build and publish to production, full rollout, with listing and images'
   lane :production do
     bundle
-    upload_to_play_store(
-      track: 'production',
-      aab: AAB,
-      skip_upload_apk: true,
-      # fastlane/metadata/android is the listing: texts, the changelog, the
-      # icon, the feature graphic and the screenshots test/store_screenshots
-      # renders. What isn't there stays as set in the Play Console.
+    upload = lambda do |status|
+      upload_to_play_store(
+        track: 'production',
+        aab: AAB,
+        skip_upload_apk: true,
+        # fastlane/metadata/android is the listing: texts, the changelog, the
+        # icon, the feature graphic and the screenshots test/store_screenshots
+        # renders. What isn't there stays as set in the Play Console.
+        release_status: status
+      )
+    end
+    begin
       # 'completed' without a rollout fraction is a 100% release; Google
-      # still reviews it first.
-      release_status: 'completed'
-    )
+      # still reviews it first
+      upload.call('completed')
+    rescue StandardError => e
+      raise unless e.message.include?('draft app')
+      # Until the app's first release is published in the Play Console, the
+      # API only takes drafts. Roll this one out there by hand, once.
+      UI.important('The app is still a draft on Play, uploading the release as a draft')
+      upload.call('draft')
+    end
   end
 end
