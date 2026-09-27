@@ -1,0 +1,1 @@
+Barcode,Scanner,kabellos,Strichcode,Tastatur,Inventur,Lager,Kasse,Ticket,EAN,QR,Eingabe

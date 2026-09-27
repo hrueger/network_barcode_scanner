@@ -1,0 +1,17 @@
+Scan a barcode with your iPhone and have it typed on your computer, as if a USB barcode scanner were plugged in. No cable, no pairing, no account.
+
+HOW IT WORKS
+Install Network Barcode Scanner on your iPhone and on your Mac or PC. The phone finds the computers on your network by itself and sends every code you scan to all of them. On the computer the codes appear in a list, and with auto-type turned on they are typed into whatever app has focus, followed by Enter or Tab.
+
+MADE FOR THE COUNTER AND THE WAREHOUSE
+• Check in tickets, look up products, count stock or fill in forms
+• Reads all common barcodes and QR codes with the camera
+• Shows which computers receive your scans
+• Skips repeated scans of the same code, with an adjustable wait time
+• Confirms every scan with a sound
+• Light and dark mode
+
+PRIVATE BY DESIGN
+Codes travel only inside your local network, directly from the phone to your computers. The app has no account, no analytics and no ads, and collects no data.
+
+The app for your computer is free as well.

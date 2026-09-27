@@ -1,0 +1,17 @@
+Scanne einen Barcode mit dem iPhone, und er wird am Rechner getippt, als wäre ein USB-Barcodescanner angeschlossen. Kein Kabel, kein Koppeln, kein Konto.
+
+SO FUNKTIONIERT'S
+Installiere Network Barcode Scanner auf dem iPhone und auf deinem Mac oder PC. Das Handy findet die Rechner im Netzwerk von selbst und schickt jeden gescannten Code an alle. Am Rechner erscheinen die Codes in einer Liste, und mit Auto-Type werden sie in die gerade aktive App getippt, gefolgt von Enter oder Tab.
+
+GEMACHT FÜR THEKE UND LAGER
+• Tickets einlassen, Artikel nachschlagen, Bestand zählen oder Formulare ausfüllen
+• Liest alle gängigen Barcodes und QR-Codes mit der Kamera
+• Zeigt, welche Rechner deine Scans empfangen
+• Überspringt Doppelscans desselben Codes, mit einstellbarer Wartezeit
+• Bestätigt jeden Scan mit einem Ton
+• Heller und dunkler Modus
+
+DATENSCHUTZ EINGEBAUT
+Die Codes bleiben in deinem lokalen Netzwerk und gehen direkt vom Handy an deine Rechner. Die App hat kein Konto, keine Analyse und keine Werbung und erhebt keine Daten.
+
+Die App für den Rechner ist ebenfalls kostenlos.

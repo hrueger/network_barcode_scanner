@@ -1,0 +1,26 @@
+{
+  "title": "Network Barcode Scanner",
+  "shortDescription": "Empfange am PC die Barcodes, die du am Handy scannst, und lass sie in jede App tippen, wie mit einem USB-Scanner, nur ohne Kabel.",
+  "description": "Empfange am PC die Barcodes, die du mit dem Handy oder einem Handheld scannst, und lass sie genau dort tippen, wo dein Cursor steht, als wäre ein USB-Barcodescanner angeschlossen.\n\nÖffne Network Barcode Scanner auf dem PC und auf deinem iPhone oder Android-Handy. Das Handy findet deinen PC im Netzwerk von selbst, ohne IP-Adressen und ohne Koppeln, und jeder gescannte Code erscheint in der Liste auf dem PC.\n\nMit Auto-Type wird jeder Code in die gerade aktive App getippt, gefolgt von Enter oder Tab: eine Tabelle, ein Shop-Backend, ein Ticketsystem, eine Kassen-App. Die Codes werden als Text getippt, deshalb stimmen Großbuchstaben, Umlaute und Sonderzeichen mit jedem Tastaturlayout.\n\nDie Codes bleiben in deinem lokalen Netzwerk. Die App hat kein Konto, keine Analyse und keine Werbung und erhebt keine Daten.",
+  "features": [
+    "Tippt empfangene Barcodes in jede App, gefolgt von Enter oder Tab",
+    "Findet Handys im Netzwerk von selbst, ohne IP-Adressen oder Koppeln",
+    "Funktioniert mit Handykameras und Android-Handhelds wie dem Chainway C90",
+    "Mehrere Handys können gleichzeitig an mehrere PCs senden",
+    "Stimmt mit jedem Tastaturlayout, auch bei Umlauten und Sonderzeichen",
+    "Kein Konto, keine Werbung, keine Datenerhebung"
+  ],
+  "keywords": [
+    "Barcode",
+    "Scanner",
+    "kabellos",
+    "Strichcode",
+    "Inventur",
+    "Lager",
+    "Kasse"
+  ],
+  "privacyPolicyUrl": "https://hrueger.github.io/network_barcode_scanner/privacy/#de",
+  "supportUrl": "https://hrueger.github.io/network_barcode_scanner/support/#de",
+  "website": "https://hrueger.github.io/network_barcode_scanner/",
+  "releaseNotes": "Erste Version."
+}

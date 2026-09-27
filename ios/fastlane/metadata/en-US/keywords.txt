@@ -1,0 +1,1 @@
+barcode,scanner,wireless,keyboard wedge,inventory,warehouse,ticket,EAN,QR,POS,input,remote

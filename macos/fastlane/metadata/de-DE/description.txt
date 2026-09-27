@@ -1,0 +1,19 @@
+Empfange am Mac die Barcodes, die du mit dem Handy oder einem Handheld scannst, und lass sie genau dort tippen, wo dein Cursor steht, als wäre ein USB-Barcodescanner angeschlossen.
+
+SO FUNKTIONIERT'S
+Öffne Network Barcode Scanner auf dem Mac und auf deinem iPhone. Das Handy findet deinen Mac im Netzwerk von selbst, ohne IP-Adressen und ohne Koppeln, und jeder gescannte Code erscheint in der Liste auf dem Mac.
+
+TIPPT IN JEDE APP
+Mit Auto-Type wird jeder Code in die gerade aktive App getippt, gefolgt von Enter oder Tab: eine Tabelle, ein Shop-Backend, ein Ticketsystem, eine Kassen-App. Die Codes werden als Text getippt, deshalb stimmen Großbuchstaben, Umlaute und Sonderzeichen mit jedem Tastaturlayout.
+
+GEMACHT FÜR THEKE UND LAGER
+• Funktioniert mit der iPhone-Kamera und mit Barcode-Handhelds
+• Mehrere Handys können gleichzeitig an mehrere Rechner senden
+• Jeden empfangenen Code mit einem Klick kopieren
+• Bestätigt jeden Code mit einem Ton
+• Heller und dunkler Modus
+
+DATENSCHUTZ EINGEBAUT
+Die Codes bleiben in deinem lokalen Netzwerk. Die App hat kein Konto, keine Analyse und keine Werbung und erhebt keine Daten. Sie tippt nur die empfangenen Codes und liest nie deine Tastatur mit.
+
+Die iPhone-App ist ebenfalls kostenlos.

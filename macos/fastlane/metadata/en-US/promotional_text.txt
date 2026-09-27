@@ -1,0 +1,1 @@
+Receive barcodes scanned on your phone and have them typed into any app on your Mac, like a USB scanner without the cable.

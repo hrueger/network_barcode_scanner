@@ -1,0 +1,19 @@
+Receive the barcodes you scan with your phone or handheld on your Mac, and have them typed right where your cursor is, as if a USB barcode scanner were plugged in.
+
+HOW IT WORKS
+Open Network Barcode Scanner on your Mac and on your iPhone. The phone finds your Mac on the network by itself, with no IP addresses and no pairing, and every code you scan shows up in the list on your Mac.
+
+TYPES INTO ANY APP
+Turn on auto-type and each code is typed into the app that has focus, followed by Enter or Tab: a spreadsheet, a web shop back end, a ticketing system, a point-of-sale app. Codes are typed as text, so upper case, umlauts and symbols come out right on any keyboard layout.
+
+MADE FOR THE COUNTER AND THE WAREHOUSE
+• Works with the iPhone's camera and with hardware barcode handhelds
+• Several phones can send to several computers at once
+• Copy any received code with one click
+• Confirms every code with a sound
+• Light and dark mode
+
+PRIVATE BY DESIGN
+Codes travel only inside your local network. The app has no account, no analytics and no ads, and collects no data. It types only the codes it receives and never reads your keyboard.
+
+The iPhone app is free as well.
