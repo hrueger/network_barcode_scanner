@@ -1,0 +1,137 @@
+name: Stores
+
+# A tag v1.2.3 uploads that version to the stores, submits it for review and
+# releases it on approval. Separate from release.yml, so a store rejecting a
+# build never touches the GitHub release.
+#
+# Each store is switched on by a repository variable, not by whether its
+# secrets happen to exist. Set it under Settings › Secrets and variables ›
+# Actions › Variables once the store is set up:
+#   RELEASE_APPSTORE_IOS=true     iPhone/iPad app
+#   RELEASE_APPSTORE_MACOS=true   Mac App Store
+on:
+  push:
+    tags:
+      - 'v[0-9]*'
+  # Re-running an upload (a rejected binary, a wrong credential) without a
+  # fake version bump; the build number counts up by itself
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to upload, e.g. v1.2.3'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: '3.47.4'
+  TAG: ${{ inputs.tag || github.ref_name }}
+
+jobs:
+  appstore-ios:
+    if: vars.RELEASE_APPSTORE_IOS == 'true'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+          working-directory: ios
+
+      # A macOS runner starts with no known_hosts, so match's first clone of
+      # the certificates repo would stop on a host-key prompt
+      - name: Trust github.com for ssh
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts
+
+      - name: Write the App Store Connect key
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          set -euo pipefail
+          if [ -z "$ASC_KEY_P8" ]; then
+            echo "::error::Secret ASC_KEY_P8 is not set" >&2
+            exit 1
+          fi
+          echo "$ASC_KEY_P8" | base64 --decode > "$RUNNER_TEMP/asc_key.p8"
+
+      - name: Upload and submit for review
+        working-directory: ios
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_PATH: ${{ runner.temp }}/asc_key.p8
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_PRIVATE_KEY: ${{ secrets.MATCH_GIT_PRIVATE_KEY }}
+        run: bundle exec fastlane ios release
+
+      - name: Shred credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/asc_key.p8"
+
+  appstore-macos:
+    if: vars.RELEASE_APPSTORE_MACOS == 'true'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+          working-directory: macos
+
+      - name: Trust github.com for ssh
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts
+
+      - name: Write the App Store Connect key
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          set -euo pipefail
+          if [ -z "$ASC_KEY_P8" ]; then
+            echo "::error::Secret ASC_KEY_P8 is not set" >&2
+            exit 1
+          fi
+          echo "$ASC_KEY_P8" | base64 --decode > "$RUNNER_TEMP/asc_key.p8"
+
+      - name: Upload and submit for review
+        working-directory: macos
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_PATH: ${{ runner.temp }}/asc_key.p8
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_PRIVATE_KEY: ${{ secrets.MATCH_GIT_PRIVATE_KEY }}
+        run: bundle exec fastlane mac appstore_release
+
+      - name: Shred credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/asc_key.p8"

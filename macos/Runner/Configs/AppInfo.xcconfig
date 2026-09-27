@@ -22,6 +22,8 @@ CODE_SIGN_IDENTITY = Apple Development
 // Notarization rejects an app without the hardened runtime
 ENABLE_HARDENED_RUNTIME = YES
 
-// Release builds for GitHub switch to Developer ID here. fastlane writes this
-// file (see macos/fastlane/Fastfile) and deletes it again; it is gitignored.
-#include? "DeveloperID.xcconfig"
+// Release builds switch signing here: Developer ID for GitHub, Apple
+// Distribution with a provisioning profile for the Mac App Store. fastlane
+// writes this file (see macos/fastlane/Fastfile) and deletes it again; it is
+// gitignored.
+#include? "Signing.xcconfig"

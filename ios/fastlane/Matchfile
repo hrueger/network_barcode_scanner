@@ -1,0 +1,10 @@
+# The App Store signing identity, from the technikpool certificates repo:
+# match keeps certificates per team, so the Apple Distribution certificate
+# already there signs this app too. Only the provisioning profile is new, and
+# `fastlane ios setup` creates it once. See macos/fastlane/Matchfile.
+git_url(ENV.fetch('MATCH_GIT_URL', ''))
+storage_mode('git')
+
+type('appstore')
+app_identifier(['com.hannesrueger.networkBarcodeScanner'])
+readonly(true)

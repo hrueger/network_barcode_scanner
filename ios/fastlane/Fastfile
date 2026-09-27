@@ -1,0 +1,145 @@
+# Uploading the iPhone/iPad app to the App Store.
+#
+#   bundle exec fastlane ios setup     # once, by hand: bundle id + profile
+#   bundle exec fastlane ios release   # build, upload, submit; what CI runs
+#
+# Version comes from pubspec.yaml; the build number is one above the latest
+# upload for that version, so re-running a tag never collides.
+#
+# Credentials: an App Store Connect API key (ASC_KEY_ID, ASC_ISSUER_ID,
+# ASC_KEY_PATH to the .p8) and match (MATCH_GIT_URL, MATCH_PASSWORD), the
+# same ones technikpool uses.
+#
+# What the lanes cannot do, because the API doesn't allow it, is done once in
+# App Store Connect: create the app (iOS and macOS in one record), set the
+# price to free, fill in the age rating, App Privacy ("Data Not Collected")
+# and the App Review contact.
+
+default_platform(:ios)
+
+FLUTTER_PROJECT = File.expand_path('../..', __dir__)
+IOS_DIR = File.expand_path('..', __dir__)
+OUTPUT_DIR = File.join(FLUTTER_PROJECT, 'build/ios/ipa')
+IPA = File.join(OUTPUT_DIR, 'Runner.ipa')
+APP_IDENTIFIER = 'com.hannesrueger.networkBarcodeScanner'
+
+# fastlane's Ruby environment breaks the CocoaPods that flutter runs
+RUBY_ENV = %w[GEM_HOME GEM_PATH RUBYOPT RUBYLIB BUNDLE_GEMFILE BUNDLE_BIN_PATH BUNDLER_VERSION BUNDLER_SETUP].freeze
+
+def flutter(*args)
+  saved = RUBY_ENV.to_h { |name| [name, ENV.delete(name)] }
+  Dir.chdir(FLUTTER_PROJECT) { sh('flutter', *args) }
+ensure
+  saved.each { |name, value| ENV[name] = value if value }
+end
+
+def version
+  line = File.read(File.join(FLUTTER_PROJECT, 'pubspec.yaml'))[/^version:\s*(\S+)/, 1]
+  UI.user_error!('No version in pubspec.yaml') unless line
+  line.split('+').first
+end
+
+def asc_key
+  %w[ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_PATH].each do |name|
+    UI.user_error!("#{name} is not set, see the comment at the top of this Fastfile") if
+      ENV[name].to_s.empty?
+  end
+  app_store_connect_api_key(
+    key_id: ENV.fetch('ASC_KEY_ID'),
+    issuer_id: ENV.fetch('ASC_ISSUER_ID'),
+    key_filepath: ENV.fetch('ASC_KEY_PATH'),
+    in_house: false
+  )
+end
+
+def require_match_env
+  %w[MATCH_GIT_URL MATCH_PASSWORD].each do |name|
+    UI.user_error!("#{name} is not set, see ios/fastlane/Matchfile") if ENV[name].to_s.empty?
+  end
+end
+
+platform :ios do
+  desc 'Register the bundle id for iOS and macOS, and create the App Store profile'
+  desc 'Once, by hand on a Mac, never on CI: it writes to the certificates repo'
+  lane :setup do
+    require_match_env
+    asc_key
+    # UNIVERSAL: one bundle id for the iOS and the macOS app, which is what
+    # lets both share one App Store record (universal purchase)
+    if Spaceship::ConnectAPI::BundleId.find(APP_IDENTIFIER)
+      UI.message("Bundle id #{APP_IDENTIFIER} is already registered")
+    else
+      Spaceship::ConnectAPI::BundleId.create(
+        name: 'Network Barcode Scanner',
+        platform: 'UNIVERSAL',
+        identifier: APP_IDENTIFIER
+      )
+      UI.success("Registered #{APP_IDENTIFIER}")
+    end
+    # readonly false creates the missing profile. The Apple Distribution
+    # certificate is already in the repo, so match reuses it.
+    match(readonly: false, api_key: lane_context[SharedValues::APP_STORE_CONNECT_API_KEY])
+  end
+
+  desc 'Build a signed App Store ipa'
+  lane :build do |options|
+    api_key = options[:api_key] || asc_key
+    require_match_env
+    # A throwaway keychain on CI; does nothing elsewhere
+    setup_ci
+    match(readonly: true, api_key: api_key)
+
+    build_number = latest_testflight_build_number(
+      api_key: api_key, app_identifier: APP_IDENTIFIER, version: version, initial_build_number: 0
+    ) + 1
+    flutter('pub', 'get')
+    # Flutter builds, gym archives and signs on export: `flutter build ipa`
+    # would sign with Xcode's automatic signing and ignore match's profile.
+    flutter('build', 'ios', '--release', '--no-codesign', "--build-number=#{build_number}")
+
+    profile = lane_context[SharedValues::MATCH_PROVISIONING_PROFILE_MAPPING][APP_IDENTIFIER]
+    build_app(
+      workspace: File.join(IOS_DIR, 'Runner.xcworkspace'),
+      scheme: 'Runner',
+      configuration: 'Release',
+      export_method: 'app-store',
+      output_directory: OUTPUT_DIR,
+      output_name: 'Runner.ipa',
+      # Archive unsigned, sign on export. Signing settings passed to
+      # xcodebuild would apply to every target, plugin packages included,
+      # which have no profile and fail the archive.
+      skip_codesigning: true,
+      export_team_id: CredentialsManager::AppfileConfig.try_fetch_value(:team_id),
+      export_options: {
+        signingStyle: 'manual',
+        provisioningProfiles: { APP_IDENTIFIER => profile }
+      }
+    )
+    UI.user_error!("No ipa at #{IPA}") unless File.exist?(IPA)
+  end
+
+  desc 'Build, upload with texts and screenshots, submit for review, release on approval'
+  lane :release do
+    api_key = asc_key
+    build(api_key: api_key)
+    upload_to_app_store(
+      api_key: api_key,
+      ipa: IPA,
+      # fastlane/metadata and fastlane/screenshots (rendered by
+      # test/store_screenshots) are the listing; what isn't in them stays as
+      # set in App Store Connect
+      overwrite_screenshots: true,
+      # deliver otherwise stops for a confirmation, which on CI is a crash
+      force: true,
+      precheck_include_in_app_purchases: false,
+      submit_for_review: true,
+      automatic_release: true,
+      # Answered here, because an unanswered question doesn't fail the
+      # submission, it parks it
+      submission_information: {
+        export_compliance_uses_encryption: false,
+        add_id_info_uses_idfa: false
+      }
+    )
+  end
+end

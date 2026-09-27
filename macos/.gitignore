@@ -6,8 +6,8 @@
 **/dgph
 **/xcuserdata/
 
-# Written by fastlane for Developer ID builds only
-Runner/Configs/DeveloperID.xcconfig
+# Written by fastlane for release builds only
+Runner/Configs/Signing.xcconfig
 
 # fastlane working files
 fastlane/report.xml

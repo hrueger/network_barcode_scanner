@@ -1,9 +1,12 @@
-# Builds the notarized DMG that goes on the GitHub release. No App Store yet.
+# The macOS app, two ways: a notarized DMG for the GitHub release, and the
+# Mac App Store.
+#
+#   bundle exec fastlane mac build              # signed DMG, not notarized; runs locally
+#   bundle exec fastlane mac release            # build + notarize + staple; what CI runs
+#   bundle exec fastlane mac appstore_setup     # once, by hand: App Store profile + installer cert
+#   bundle exec fastlane mac appstore_release   # build, upload, submit; what CI runs
 #
 # Version comes from pubspec.yaml; these lanes never invent one.
-#
-#   bundle exec fastlane mac build     # signed DMG, not notarized; runs locally
-#   bundle exec fastlane mac release   # build + notarize + staple; what CI runs
 #
 # Locally the Developer ID certificate comes from your keychain. On CI it comes
 # from match (see Matchfile), which needs MATCH_GIT_URL and MATCH_PASSWORD.
@@ -18,9 +21,11 @@ default_platform(:mac)
 # __dir__ is macos/fastlane, so this is the Flutter project root
 FLUTTER_PROJECT = File.expand_path('../..', __dir__)
 APP_NAME = 'Network Barcode Scanner'
+APP_IDENTIFIER = 'com.hannesrueger.networkBarcodeScanner'
+PKG = File.join(FLUTTER_PROJECT, 'build/macos/network-barcode-scanner.pkg')
 APP = File.join(FLUTTER_PROJECT, "build/macos/Build/Products/Release/#{APP_NAME}.app")
 DMG_DIR = File.join(FLUTTER_PROJECT, 'build/dmg')
-SIGNING_XCCONFIG = File.expand_path('../Runner/Configs/DeveloperID.xcconfig', __dir__)
+SIGNING_XCCONFIG = File.expand_path('../Runner/Configs/Signing.xcconfig', __dir__)
 
 # fastlane's Ruby environment leaks into child processes, and CocoaPods,
 # which `flutter build macos` runs, then fails to load its own gems.
@@ -64,7 +69,7 @@ def install_certificate
     UI.user_error!("#{name} is not set, see macos/fastlane/Matchfile") if ENV[name].to_s.empty?
   end
   setup_ci
-  match(skip_provisioning_profiles: true)
+  match(type: 'developer_id', skip_provisioning_profiles: true)
 end
 
 # The SHA-1 of the certificate that signed the app. Naming the identity is
@@ -78,14 +83,35 @@ def signing_identity_of(path)
   end
 end
 
+# Builds the app with the signing settings in [xcconfig] layered over
+# AppInfo.xcconfig, so the Xcode project itself never changes.
+def build_signed_app(xcconfig, build_number: nil)
+  File.write(SIGNING_XCCONFIG, xcconfig)
+  flutter('pub', 'get')
+  flutter('build', 'macos', '--release', *(build_number ? ["--build-number=#{build_number}"] : []))
+  UI.user_error!("No app at #{APP}") unless File.exist?(APP)
+  sh('codesign', '--verify', '--deep', '--strict', APP)
+ensure
+  FileUtils.rm_f(SIGNING_XCCONFIG)
+end
+
+# The installer certificate that signs the .pkg for the Mac App Store. Apple
+# names it "3rd Party Mac Developer Installer" or "Mac Installer Distribution"
+# depending on when it was made.
+def installer_identity
+  found = sh('security', 'find-identity', '-v', log: false).lines.find do |line|
+    line =~ /(3rd Party Mac Developer Installer|Mac Installer Distribution): .*\(M273PG74WU\)/
+  end
+  UI.user_error!('No Mac installer certificate in the keychain, run `fastlane mac appstore_setup`') unless found
+  found[/[0-9A-F]{40}/]
+end
+
 platform :mac do
   desc 'Build the app signed with Developer ID and wrap it in a signed DMG'
   lane :build do
     install_certificate
 
-    # Overrides the Apple Development signing in AppInfo.xcconfig for this
-    # build only, so the Xcode project itself never changes.
-    File.write(SIGNING_XCCONFIG, <<~XCCONFIG)
+    build_signed_app(<<~XCCONFIG)
       CODE_SIGN_STYLE = Manual
       CODE_SIGN_IDENTITY = Developer ID Application
       OTHER_CODE_SIGN_FLAGS = --timestamp
@@ -93,14 +119,6 @@ platform :mac do
       // service rejects any app that carries it
       CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO
     XCCONFIG
-    begin
-      flutter('pub', 'get')
-      flutter('build', 'macos', '--release')
-    ensure
-      FileUtils.rm_f(SIGNING_XCCONFIG)
-    end
-    UI.user_error!("No app at #{APP}") unless File.exist?(APP)
-    sh('codesign', '--verify', '--deep', '--strict', APP)
 
     FileUtils.mkdir_p(DMG_DIR)
     FileUtils.rm_f(dmg_path)
@@ -130,6 +148,63 @@ platform :mac do
     # Developer ID needs no provisioning profile; an empty path skips it,
     # where nil would make match prompt for one
     Match::Importer.new.import_cert(params, cert_path: options[:cert], p12_path: options[:p12], profile_path: '')
+  end
+
+  desc 'Create the Mac App Store profile and the installer certificate'
+  desc 'Once, by hand on a Mac, after `fastlane ios setup` registered the bundle id'
+  lane :appstore_setup do
+    # readonly false creates what is missing: the Mac App Store profile, and a
+    # Mac Installer Distribution certificate for the .pkg. The Apple
+    # Distribution certificate already in the repo signs the app itself.
+    match(type: 'appstore', additional_cert_types: ['mac_installer_distribution'],
+          readonly: false, api_key: asc_key)
+  end
+
+  desc 'Build the app for the Mac App Store and wrap it in a signed installer package'
+  lane :appstore_build do |options|
+    api_key = options[:api_key] || asc_key
+    setup_ci
+    match(type: 'appstore', additional_cert_types: ['mac_installer_distribution'],
+          readonly: true, api_key: api_key)
+    profile = lane_context[SharedValues::MATCH_PROVISIONING_PROFILE_MAPPING][APP_IDENTIFIER]
+    build_number = latest_testflight_build_number(
+      api_key: api_key, app_identifier: APP_IDENTIFIER, platform: 'osx', version: version,
+      initial_build_number: 0
+    ) + 1
+
+    build_signed_app(<<~XCCONFIG, build_number: build_number)
+      CODE_SIGN_STYLE = Manual
+      CODE_SIGN_IDENTITY = Apple Distribution
+      PROVISIONING_PROFILE_SPECIFIER = #{profile}
+      // Xcode adds get-task-allow otherwise, which App Store Connect rejects
+      CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO
+    XCCONFIG
+
+    FileUtils.rm_f(PKG)
+    sh('productbuild', '--component', APP, '/Applications', '--sign', installer_identity, PKG)
+    UI.success("Built #{PKG}")
+  end
+
+  desc 'Build, upload with texts and screenshots, submit for review, release on approval'
+  lane :appstore_release do
+    api_key = asc_key
+    appstore_build(api_key: api_key)
+    upload_to_app_store(
+      api_key: api_key,
+      platform: 'osx',
+      pkg: PKG,
+      # fastlane/metadata and fastlane/screenshots (rendered by
+      # test/store_screenshots) are the listing
+      overwrite_screenshots: true,
+      force: true,
+      precheck_include_in_app_purchases: false,
+      submit_for_review: true,
+      automatic_release: true,
+      submission_information: {
+        export_compliance_uses_encryption: false,
+        add_id_info_uses_idfa: false
+      }
+    )
   end
 
   desc 'Build, notarize and staple the DMG'

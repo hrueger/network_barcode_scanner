@@ -1,0 +1,5 @@
+source 'https://rubygems.org'
+
+# Pinned so a fastlane release doesn't change what CI does overnight.
+# Gemfile.lock is generated locally and committed; regenerate with `bundle lock`.
+gem 'fastlane', '~> 2.240'

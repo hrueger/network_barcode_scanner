@@ -32,3 +32,10 @@ Runner/GeneratedPluginRegistrant.*
 !default.mode2v3
 !default.pbxuser
 !default.perspectivev3
+
+# fastlane working files
+fastlane/report.xml
+fastlane/README.md
+fastlane/Preview.html
+vendor/bundle/
+.bundle/
