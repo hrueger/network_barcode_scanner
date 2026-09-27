@@ -18,5 +18,5 @@ storage_mode('git')
 
 type('developer_id')
 platform('macos')
-app_identifier(['events.rueger.networkBarcodeScanner'])
+app_identifier(['com.hannesrueger.networkBarcodeScanner'])
 readonly(true)

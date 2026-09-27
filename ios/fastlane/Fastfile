@@ -21,7 +21,7 @@ FLUTTER_PROJECT = File.expand_path('../..', __dir__)
 IOS_DIR = File.expand_path('..', __dir__)
 OUTPUT_DIR = File.join(FLUTTER_PROJECT, 'build/ios/ipa')
 IPA = File.join(OUTPUT_DIR, 'Runner.ipa')
-APP_IDENTIFIER = 'events.rueger.networkBarcodeScanner'
+APP_IDENTIFIER = 'com.hannesrueger.networkBarcodeScanner'
 
 # fastlane's Ruby environment breaks the CocoaPods that flutter runs
 RUBY_ENV = %w[GEM_HOME GEM_PATH RUBYOPT RUBYLIB BUNDLE_GEMFILE BUNDLE_BIN_PATH BUNDLER_VERSION BUNDLER_SETUP].freeze

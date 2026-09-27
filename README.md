@@ -75,10 +75,8 @@ flutter pub get
 flutter run          # on a phone for the scanner, on the desktop for the listener
 ```
 
-Bundle and package ids are `events.rueger.networkBarcodeScanner` (Apple) and
-`com.hannesrueger.network_barcode_scanner` (Android, Linux). They differ because
-the Apple one had to change after the first Android release: the old
-`com.hannesrueger.networkBarcodeScanner` is held by a personal Xcode team.
+Bundle and package ids are `com.hannesrueger.networkBarcodeScanner` (Apple) and
+`com.hannesrueger.network_barcode_scanner` (Android, Linux).
 
 The app icon is drawn in `assets/icon/*.svg`. After changing it, render the PNGs
 and regenerate the platform icons:
