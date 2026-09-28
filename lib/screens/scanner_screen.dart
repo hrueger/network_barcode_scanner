@@ -60,6 +60,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
   DateTime? lastScannedTime;
   final Set<String> _scannedCodesHistory = {};
 
+  /// Restarts the camera when the user comes back from granting access in
+  /// the system settings.
+  AppLifecycleListener? _lifecycle;
+
   @override
   void initState() {
     super.initState();
@@ -78,6 +82,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
       return;
     }
     _udpService.startDiscovery();
+    _lifecycle = AppLifecycleListener(onResume: _retryCameraAfterPermission);
     _resolveInput();
   }
 
@@ -111,10 +116,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
         onError: (error) => log('Hardware scanner error: $error'),
       );
     } else {
+      // The scanner asks for camera access itself once its widget is built.
       _controller = MobileScannerController(
         detectionSpeed: DetectionSpeed.normal,
       );
-      await _requestCameraPermission();
     }
     if (mounted) setState(() => _useHardware = useHardware);
   }
@@ -127,19 +132,29 @@ class _ScannerScreenState extends State<ScannerScreen> {
     _controller = null;
   }
 
-  Future<void> _requestCameraPermission() async {
-    final status = await Permission.camera.request();
-    if (status.isDenied) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Camera permission is required')),
-        );
-      }
+  /// Once Android stops showing the permission dialog, only the system
+  /// settings can grant camera access.
+  Future<void> _retryCamera(MobileScannerException error) async {
+    if (error.errorCode == MobileScannerErrorCode.permissionDenied &&
+        await Permission.camera.isPermanentlyDenied) {
+      await openAppSettings();
+      return;
     }
+    await _controller?.start();
+  }
+
+  Future<void> _retryCameraAfterPermission() async {
+    final controller = _controller;
+    if (controller?.value.error?.errorCode !=
+        MobileScannerErrorCode.permissionDenied) {
+      return;
+    }
+    if (await Permission.camera.isGranted) await controller?.start();
   }
 
   @override
   void dispose() {
+    _lifecycle?.dispose();
     if (widget.preview == null) _stopInput();
     _udpService.dispose();
     super.dispose();
@@ -345,6 +360,12 @@ class _ScannerScreenState extends State<ScannerScreen> {
           onDetect: _handleBarcode,
           scanWindow: scanWindow,
           tapToFocus: true,
+          placeholderBuilder: (context) => const ColoredBox(
+            color: Colors.black,
+            child: Center(child: CircularProgressIndicator()),
+          ),
+          errorBuilder: (context, error) =>
+              CameraErrorView(error: error, onRetry: () => _retryCamera(error)),
         ),
         IgnorePointer(
           child: BarcodeOverlay(controller: controller, boxFit: BoxFit.cover),
@@ -356,6 +377,84 @@ class _ScannerScreenState extends State<ScannerScreen> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Says why the camera could not start and offers the fix. mobile_scanner's
+/// own error widget shows "An unexpected error occurred." for every cause in
+/// release builds.
+class CameraErrorView extends StatelessWidget {
+  final MobileScannerException error;
+  final VoidCallback onRetry;
+
+  const CameraErrorView({
+    super.key,
+    required this.error,
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, title, detail, action) = switch (error.errorCode) {
+      MobileScannerErrorCode.permissionDenied => (
+        Icons.no_photography_outlined,
+        'Camera access needed',
+        'Allow camera access to scan barcodes.',
+        'Allow camera',
+      ),
+      MobileScannerErrorCode.unsupported => (
+        Icons.videocam_off_outlined,
+        'No camera found',
+        HardwareScannerService.isSupported
+            ? 'This device has no camera to scan with. On a handheld '
+                  'scanner, pick "Hardware trigger" under Settings > Scan '
+                  'Input.'
+            : 'This device has no camera to scan with.',
+        null,
+      ),
+      _ => (
+        Icons.error_outline,
+        'Camera could not start',
+        error.errorDetails?.message ??
+            'Close other apps that use the camera and try again.',
+        'Try again',
+      ),
+    };
+    final theme = Theme.of(context);
+    return ColoredBox(
+      color: Colors.black,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 64, color: Colors.white),
+              const SizedBox(height: 16),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                detail,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: Colors.white70,
+                ),
+              ),
+              if (action != null) ...[
+                const SizedBox(height: 24),
+                FilledButton(onPressed: onRetry, child: Text(action)),
+              ],
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

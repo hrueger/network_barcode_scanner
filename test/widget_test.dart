@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:network_barcode_scanner/screens/listener_screen.dart';
 import 'package:network_barcode_scanner/screens/scanner_screen.dart';
 import 'package:network_barcode_scanner/screens/settings_screen.dart';
@@ -69,6 +70,44 @@ void main() {
         app(brightness, const SettingsScreen(desktop: true)),
       );
       expect(find.text('Auto-Type on Receive'), findsOneWidget);
+    });
+
+    testWidgets('camera error asks for access when denied ($brightness)', (
+      tester,
+    ) async {
+      var retried = false;
+      await tester.pumpWidget(
+        app(
+          brightness,
+          CameraErrorView(
+            error: const MobileScannerException(
+              errorCode: MobileScannerErrorCode.permissionDenied,
+            ),
+            onRetry: () => retried = true,
+          ),
+        ),
+      );
+      expect(find.text('Camera access needed'), findsOneWidget);
+      await tester.tap(find.text('Allow camera'));
+      expect(retried, isTrue);
+    });
+
+    testWidgets('camera error names a missing camera ($brightness)', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        app(
+          brightness,
+          CameraErrorView(
+            error: const MobileScannerException(
+              errorCode: MobileScannerErrorCode.unsupported,
+            ),
+            onRetry: () {},
+          ),
+        ),
+      );
+      expect(find.text('No camera found'), findsOneWidget);
+      expect(find.byType(FilledButton), findsNothing);
     });
   }
 }
