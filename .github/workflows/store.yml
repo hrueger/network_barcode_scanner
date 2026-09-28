@@ -17,13 +17,25 @@ on:
     tags:
       - 'v[0-9]*'
   # Re-running an upload (a rejected binary, a wrong credential) without a
-  # fake version bump; the build number counts up by itself
+  # fake version bump; the build number counts up by itself. Picking one
+  # store ships a fix there while the others still review the last version.
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to upload, e.g. v1.2.3'
+        description: 'Tag (or commit) to upload, e.g. v1.2.3'
         required: true
         type: string
+      store:
+        description: 'Store to upload to'
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - appstore-ios
+          - appstore-macos
+          - google-play
+          - microsoft-store
 
 permissions:
   contents: read
@@ -34,7 +46,7 @@ env:
 
 jobs:
   appstore-ios:
-    if: vars.RELEASE_APPSTORE_IOS == 'true'
+    if: vars.RELEASE_APPSTORE_IOS == 'true' && contains(fromJSON('["all", "appstore-ios"]'), inputs.store || 'all')
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v6
@@ -89,7 +101,7 @@ jobs:
         run: rm -f "$RUNNER_TEMP/asc_key.p8"
 
   appstore-macos:
-    if: vars.RELEASE_APPSTORE_MACOS == 'true'
+    if: vars.RELEASE_APPSTORE_MACOS == 'true' && contains(fromJSON('["all", "appstore-macos"]'), inputs.store || 'all')
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v6
@@ -142,7 +154,7 @@ jobs:
         run: rm -f "$RUNNER_TEMP/asc_key.p8"
 
   google-play:
-    if: vars.RELEASE_GOOGLE_PLAY == 'true'
+    if: vars.RELEASE_GOOGLE_PLAY == 'true' && contains(fromJSON('["all", "google-play"]'), inputs.store || 'all')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -209,7 +221,7 @@ jobs:
           if-no-files-found: ignore
 
   microsoft-store:
-    if: vars.RELEASE_MSSTORE == 'true'
+    if: vars.RELEASE_MSSTORE == 'true' && contains(fromJSON('["all", "microsoft-store"]'), inputs.store || 'all')
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6
