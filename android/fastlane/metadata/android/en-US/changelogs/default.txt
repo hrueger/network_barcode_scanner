@@ -1,1 +1,1 @@
-First release on Google Play.
+When the camera can't start, the scanner now says why and how to fix it, for example by allowing camera access.

@@ -1,14 +1,32 @@
 [
   {
+    "version": "1.0.2",
+    "date": "2026-09-28",
+    "en": [
+      "When the camera can't start, the scanner now says why and how to fix it, for example by allowing camera access."
+    ],
+    "de": [
+      "Wenn die Kamera nicht startet, sagt der Scanner jetzt warum und wie es sich beheben lässt, etwa durch Freigeben des Kamerazugriffs."
+    ]
+  },
+  {
     "version": "1.0.1",
     "date": "2026-09-27",
-    "en": ["First release."],
-    "de": ["Erste Version."]
+    "en": [
+      "First release."
+    ],
+    "de": [
+      "Erste Version."
+    ]
   },
   {
     "version": "1.0.0",
     "date": "2026-09-27",
-    "en": ["First release on GitHub."],
-    "de": ["Erste Version auf GitHub."]
+    "en": [
+      "First release on GitHub."
+    ],
+    "de": [
+      "Erste Version auf GitHub."
+    ]
   }
 ]

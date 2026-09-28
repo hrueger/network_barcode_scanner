@@ -1,1 +1,1 @@
-Erste Version bei Google Play.
+Wenn die Kamera nicht startet, sagt der Scanner jetzt warum und wie es sich beheben lässt, etwa durch Freigeben des Kamerazugriffs.
